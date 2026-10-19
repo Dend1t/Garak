@@ -7,8 +7,9 @@ import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSPr
 import { createPortal } from 'react-dom';
 import { t } from '../i18n';
 import { activeLine, type LyricLine, type Lyrics } from '../lib/lyrics';
+import { useSoftArt } from '../lib/softArt';
 import * as ytm from '../lib/ytm/client';
-import { formatTime, patchPlayer, playerStore, usePlayer, usePosition } from '../state/player';
+import { formatTime, patchPlayer, playerStore, usePlayer, usePosition, usePositionSelect } from '../state/player';
 import { toastError } from '../state/ui';
 import { Cover, largeArt } from './Cover';
 import { CoverSpectrum } from './CoverSpectrum';
@@ -31,7 +32,6 @@ export function FullStage({ lyrics, offset, onExit }: { lyrics?: Lyrics | null; 
   const playing = usePlayer((s) => s.playing);
   const duration = usePlayer((s) => s.duration);
   const ad = usePlayer((s) => s.ad);
-  const position = usePosition(8);
   const [idle, setIdle] = useState(false);
   const exit = useRef(onExit);
   exit.current = onExit;
@@ -92,13 +92,21 @@ export function FullStage({ lyrics, offset, onExit }: { lyrics?: Lyrics | null; 
 
   // 시간 맞춤 가사가 있을 때만(첫 줄 전에는 ♪가 지금 줄)
   const lines = useMemo(() => lyrics?.synced?.filter((l) => l.text.trim()) ?? [], [lyrics]);
-  const at = lines.length ? activeLine(lines, position + offset) : -1;
+  // 화면 전체는 줄이 바뀔 때만 다시 그린다(진행 막대는 StageProgress가 따로 그린다).
+  const at = usePositionSelect(8, (pos) => (lines.length ? activeLine(lines, pos + offset) : -1));
   const art = artwork && !ad ? largeArt(artwork) : '';
-  const pct = duration > 0 ? Math.min(100, (position / duration) * 100) : 0;
+  // 전체 화면(약 2600px)에 깔면 반경 3이 원래 CSS blur(90px)와 비슷하다. 흐릴 그림은 큰 표지가 아니어도 된다.
+  const soft = useSoftArt(artwork && !ad ? artwork : '', 3);
 
   return createPortal(
-    <div className={`stage${idle ? ' is-idle' : ''}`} style={{ '--art': art ? `url("${art}")` : 'none' } as CSSProperties} role="dialog" aria-modal="true" aria-label={t('전체 화면')}>
-      <div className="stage__bg" aria-hidden="true" />
+    <div
+      className={`stage${idle ? ' is-idle' : ''}`}
+      style={{ '--art': art ? `url("${art}")` : 'none', '--art-soft': soft ? `url("${soft}")` : 'none' } as CSSProperties}
+      role="dialog"
+      aria-modal="true"
+      aria-label={t('전체 화면')}
+    >
+      <div className={`stage__bg${soft ? ' is-soft' : ''}`} aria-hidden="true" />
       <div className="stage__shade" aria-hidden="true" />
       <button type="button" className="icon-btn stage__exit" aria-label={t('전체 화면 끝내기')} title={t('전체 화면 끝내기 (Esc)')} onClick={onExit}>
         <Icon name="close" size={22} />
@@ -127,16 +135,24 @@ export function FullStage({ lyrics, offset, onExit }: { lyrics?: Lyrics | null; 
             <Icon name="next" size={24} />
           </button>
         </div>
-        <div className="stage__progress" aria-hidden="true">
-          <span>{formatTime(position)}</span>
-          <div className="stage__bar">
-            <span style={{ width: `${pct}%` }} />
-          </div>
-          <span>{formatTime(duration)}</span>
-        </div>
+        <StageProgress duration={duration} />
       </footer>
     </div>,
     document.body,
+  );
+}
+
+function StageProgress({ duration }: { duration: number }) {
+  const position = usePosition(8);
+  const pct = duration > 0 ? Math.min(100, (position / duration) * 100) : 0;
+  return (
+    <div className="stage__progress" aria-hidden="true">
+      <span>{formatTime(position)}</span>
+      <div className="stage__bar">
+        <span style={{ width: `${pct}%` }} />
+      </div>
+      <span>{formatTime(duration)}</span>
+    </div>
   );
 }
 

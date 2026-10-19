@@ -1,5 +1,5 @@
 // 오른쪽 "지금 곡" 패널: 다음 트랙(대기열) · 관련 항목 · 댓글 (YouTube Music 재생 화면의 탭과 같다).
-import { useCallback, useEffect, useState, type MouseEvent } from 'react';
+import { useCallback, useEffect, useRef, useState, type MouseEvent } from 'react';
 import { t, tk } from '../i18n';
 import * as ytm from '../lib/ytm/client';
 import type { Card, CommentsPage, QueueItem, Shelf, Track } from '../lib/ytm/types';
@@ -44,11 +44,17 @@ export function useQueue() {
   const videoId = usePlayer((s) => s.videoId);
   const [data, setData] = useState<QueueData | null>(null);
   const [error, setError] = useState(false);
+  const lastText = useRef('');
 
   const refresh = useCallback(() => {
     ytm.queue().then(
       (q) => {
-        setData(q);
+        // 8초마다 다시 읽지만 대개 그대로다. 바뀌었을 때만 새로 그린다.
+        const text = JSON.stringify(q);
+        if (text !== lastText.current) {
+          lastText.current = text;
+          setData(q);
+        }
         setError(false);
       },
       (err) => {
@@ -59,10 +65,16 @@ export function useQueue() {
   }, []);
 
   // 곡이 바뀌면 대기열을 다시 읽는다(자동 재생으로 뒤가 늘어나기도 한다).
+  // 창이 가려져 있는 동안은 쉬고, 다시 보이면 바로 읽는다.
   useEffect(() => {
     refresh();
-    const timer = window.setInterval(refresh, 8000);
-    return () => window.clearInterval(timer);
+    const timer = window.setInterval(() => !document.hidden && refresh(), 8000);
+    const onVisible = () => !document.hidden && refresh();
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      window.clearInterval(timer);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
   }, [videoId, refresh]);
 
   const jump = (index: number) =>

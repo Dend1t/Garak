@@ -1011,6 +1011,9 @@
       const video = eq.video;
       const now = Date.now();
       const playing = video && !video.paused && !video.ended && !video.muted && video.volume > 0;
+      const streaming = now < eq.streamUntil && playing;
+      // 소리가 흐르는 것을 확인한 뒤에는 화면이 스펙트럼을 보고 있을 때만 계산한다.
+      if (eq.heardSound && !streaming) return;
       const { out, energy } = spectrumBars();
       if (energy > 0) eq.heardSound = true;
       // 연결 후 3~8초 동안 재생 중인데 신호가 전혀 없으면 이 웹뷰에서는 연결이 소리를 끊은 것으로 본다.
@@ -1021,7 +1024,7 @@
         emit('eq', { failed: 'webaudio' });
         return;
       }
-      if (now < eq.streamUntil && playing) emit('spectrum', out);
+      if (streaming) emit('spectrum', out);
     }, 40);
   }
 
@@ -1121,7 +1124,11 @@
       const fn = methods[method];
       if (!fn) throw new Error(`unknown_method ${method}`);
       const data = await fn(args || {});
-      await invoke('engine_reply', { reply: { id, ok: true, data: data === undefined ? null : data } });
+      const value = data === undefined ? null : data;
+      // 데스크톱은 답을 JSON 글 하나로 보낸다. 앱(engine.rs)이 큰 응답을 값으로 풀었다 다시 묶지 않고 그대로 화면에 넘긴다.
+      // iOS 앱(Engine.swift)은 지금처럼 값을 받는다.
+      const reply = window.__ytmIpc ? { id, ok: true, data: value } : { id, ok: true, json: JSON.stringify(value) };
+      await invoke('engine_reply', { reply });
     } catch (err) {
       const error = err && err.message ? err.message : String(err);
       invoke('engine_reply', { reply: { id, ok: false, error } }).catch((e) =>

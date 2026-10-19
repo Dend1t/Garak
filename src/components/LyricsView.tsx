@@ -1,10 +1,11 @@
-import { useEffect, useRef, useState, type CSSProperties } from 'react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { locale, t } from '../i18n';
 import { activeLine, LYRIC_OFFSET_MAX, LYRIC_OFFSET_STEP, type Lyrics } from '../lib/lyrics';
 import * as ytm from '../lib/ytm/client';
 import { useTrackLyrics } from '../state/lyrics';
-import { patchPlayer, usePlayer, usePosition } from '../state/player';
+import { patchPlayer, usePlayer, usePositionSelect } from '../state/player';
 import { LYRIC_SCALES, setLyricsView, stepLyricScale, toastError, toggleLyrics, useLyricScale, useLyricsView } from '../state/ui';
+import { useSoftArt } from '../lib/softArt';
 import { Cover, largeArt } from './Cover';
 import { CoverSpectrum } from './CoverSpectrum';
 import { FullStage } from './FullStage';
@@ -16,8 +17,8 @@ const MANUAL_SCROLL_PAUSE_MS = 4000;
 
 function SyncedLines({ lyrics, scale, offset }: { lyrics: Lyrics; scale: number; offset: number }) {
   const lines = lyrics.synced!;
-  const position = usePosition(20);
-  const active = activeLine(lines, position + offset);
+  // 지금 줄이 바뀔 때만 다시 그린다(줄 전체를 초당 20번 그리지 않게).
+  const active = usePositionSelect(20, (pos) => activeLine(lines, pos + offset));
   const box = useRef<HTMLDivElement>(null);
   const manualUntil = useRef(0);
 
@@ -69,9 +70,8 @@ const ART_SIZE = 'var(--cover-size)';
 /** 앨범 표지 크게 + 제목·가수 + 지금 부르는 가사 두 줄(누르면 가사 보기) */
 function CoverStage({ lyrics, offset, artwork, title, artist }: { lyrics?: Lyrics | null; offset: number; artwork: string; title: string; artist: string }) {
   const playing = usePlayer((s) => s.playing);
-  const position = usePosition(4);
-  const lines = lyrics?.synced?.filter((l) => l.text.trim()) ?? [];
-  const at = lines.length ? Math.max(0, activeLine(lines, position + offset)) : -1;
+  const lines = useMemo(() => lyrics?.synced?.filter((l) => l.text.trim()) ?? [], [lyrics]);
+  const at = usePositionSelect(4, (pos) => (lines.length ? Math.max(0, activeLine(lines, pos + offset)) : -1));
   const plain = !lines.length ? (lyrics?.plain ?? '').split('\n').map((l) => l.trim()).filter(Boolean) : [];
   const now = at >= 0 ? lines[at].text : plain[0];
   const next = at >= 0 ? lines[at + 1]?.text : plain[1];
@@ -105,14 +105,20 @@ export function LyricsView() {
   const { loading, borrowed, offset, shift, nudge } = state;
 
   const scale = useLyricScale();
-  const bg = { '--art': artwork ? `url("${artwork}")` : 'none', '--lyric-scale': scale } as CSSProperties;
+  // 가사 화면 너비(약 1300px)에 깔면 반경 5가 원래 CSS blur(70px)와 비슷하다.
+  const soft = useSoftArt(artwork, 5);
+  const bg = {
+    '--art': artwork ? `url("${artwork}")` : 'none',
+    '--art-soft': soft ? `url("${soft}")` : 'none',
+    '--lyric-scale': scale,
+  } as CSSProperties;
   const view = useLyricsView();
   /** 전체 화면 모드(모니터에 틀어 두기) */
   const [stage, setStage] = useState(false);
 
   return (
     <section className="lyrics" style={bg} aria-label={view === 'cover' ? t('지금 재생') : t('가사')}>
-      <div className="lyrics__backdrop" aria-hidden="true" />
+      <div className={`lyrics__backdrop${soft ? ' is-soft' : ''}`} aria-hidden="true" />
       <header className="lyrics__head">
         {view === 'lyrics' ? (
           <div className="lyrics__track">

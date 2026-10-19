@@ -1,4 +1,4 @@
-import { memo, useState, type DragEvent, type MouseEvent } from 'react';
+import { memo, useMemo, useRef, useState, type DragEvent, type MouseEvent } from 'react';
 import { t } from '../i18n';
 import { useLang } from '../i18n/react';
 import type { Ref, Track } from '../lib/ytm/types';
@@ -38,12 +38,12 @@ function Bars() {
   );
 }
 
-interface DragProps {
-  draggable: boolean;
-  onDragStart: (e: DragEvent) => void;
-  onDragOver: (e: DragEvent) => void;
-  onDrop: (e: DragEvent) => void;
-  onDragEnd: () => void;
+/** 끌어서 순서 바꾸기. 목록이 다시 그려져도 같은 객체라 줄(memo)이 다시 그려지지 않는다. */
+interface DragHandlers {
+  start: (index: number, e: DragEvent) => void;
+  over: (index: number, e: DragEvent) => void;
+  drop: (index: number, e: DragEvent) => void;
+  end: () => void;
 }
 
 interface RowProps extends TrackMenuContext {
@@ -52,7 +52,7 @@ interface RowProps extends TrackMenuContext {
   numbered: boolean;
   showCover: boolean;
   showAlbum: boolean;
-  drag?: DragProps;
+  drag?: DragHandlers;
   dropTarget?: boolean;
   /** 재생을 목록이 정한다(정렬한 화면: 보이는 순서대로). 없으면 곡의 원래 맥락으로 재생 */
   onPlay?: (track: Track, position: number) => void;
@@ -70,13 +70,20 @@ const Row = memo(function Row({ track, position, numbered, showCover, showAlbum,
   };
   const lead = numbered ? (track.index ?? position + 1) : null;
   const play = () => (onPlay ? onPlay(track, position) : void playTrack(track));
+  const dragProps = drag && {
+    draggable: true,
+    onDragStart: (e: DragEvent) => drag.start(position, e),
+    onDragOver: (e: DragEvent) => drag.over(position, e),
+    onDrop: (e: DragEvent) => drag.drop(position, e),
+    onDragEnd: drag.end,
+  };
   return (
     <div
       className={`track${isCurrent ? ' is-current' : ''}${track.available ? '' : ' is-unavailable'}${drag ? ' is-draggable' : ''}${dropTarget ? ' is-drop-target' : ''}`}
       role="row"
       onDoubleClick={play}
       onContextMenu={menu}
-      {...drag}
+      {...dragProps}
     >
       {drag && <span className="track__grip" aria-hidden="true" title={t('끌어서 순서 바꾸기')}><Icon name="grip" size={14} /></span>}
       <div className="track__lead" role="cell">
@@ -135,31 +142,39 @@ interface Props extends TrackMenuContext {
   limit?: number;
 }
 
+/**
+ * 곡 목록. 줄(Row)은 memo라 넘기는 값이 그대로면 다시 그리지 않는다. 좋아요 표시한 곡처럼 수천 줄이 되는 목록에서
+ * 곡이 바뀌거나 다음 쪽을 받을 때 줄 전체를 다시 그리지 않도록, 줄에 넘기는 함수는 늘 같은 것이어야 한다.
+ */
 export function TrackList({ tracks, numbered = false, showCover = true, showAlbum = true, limit, editablePlaylistId, onRemoved, onReorder, onPlay }: Props) {
   const list = limit ? tracks.slice(0, limit) : tracks;
   const [drag, setDrag] = useState<{ from: number; over: number } | null>(null);
-  const dragProps = (i: number): DragProps | undefined =>
-    onReorder
-      ? {
-          draggable: true,
-          onDragStart: (e) => {
-            e.dataTransfer.effectAllowed = 'move';
-            e.dataTransfer.setData('text/plain', String(i));
-            setDrag({ from: i, over: i });
-          },
-          onDragOver: (e) => {
-            e.preventDefault();
-            e.dataTransfer.dropEffect = 'move';
-            setDrag((d) => (d && d.over !== i ? { ...d, over: i } : d));
-          },
-          onDrop: (e) => {
-            e.preventDefault();
-            if (drag && drag.from !== i) onReorder(drag.from, i);
-            setDrag(null);
-          },
-          onDragEnd: () => setDrag(null),
-        }
-      : undefined;
+  const dragRef = useRef(drag);
+  dragRef.current = drag;
+  const reorderRef = useRef(onReorder);
+  reorderRef.current = onReorder;
+  const handlers = useMemo<DragHandlers>(
+    () => ({
+      start: (i, e) => {
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/plain', String(i));
+        setDrag({ from: i, over: i });
+      },
+      over: (i, e) => {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        setDrag((d) => (d && d.over !== i ? { ...d, over: i } : d));
+      },
+      drop: (i, e) => {
+        e.preventDefault();
+        const d = dragRef.current;
+        if (d && d.from !== i) reorderRef.current?.(d.from, i);
+        setDrag(null);
+      },
+      end: () => setDrag(null),
+    }),
+    [],
+  );
   return (
     <div className={`tracks${showAlbum ? '' : ' tracks--no-album'}`} role="table">
       {list.map((t, i) => (
@@ -172,7 +187,7 @@ export function TrackList({ tracks, numbered = false, showCover = true, showAlbu
           showAlbum={showAlbum}
           editablePlaylistId={editablePlaylistId}
           onRemoved={onRemoved}
-          drag={dragProps(i)}
+          drag={onReorder ? handlers : undefined}
           dropTarget={!!drag && drag.over === i && drag.from !== i}
           onPlay={onPlay}
         />

@@ -1,5 +1,5 @@
 // 재생 상태: 엔진이 보내는 값 + 그 사이 재생 위치를 시계로 이어서 계산.
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { createStore, useStore } from '../lib/store';
 import { getPlayerState, onPlayerState, type PlayerState } from '../lib/tauri';
 import { flushPlays, recordState } from '../lib/stats';
@@ -48,23 +48,48 @@ export function currentPosition(s: PlayerState, now = Date.now()): number {
 
 export const usePlayer = <S>(select: (s: PlayerState) => S) => useStore(playerStore, select);
 
-/** 재생 위치를 화면 갱신 주기에 맞춰 이어서 계산한다(가사·진행 막대용). */
+/** 재생 위치를 초당 fps번 이어서 계산한다(진행 막대용). */
 export function usePosition(fps = 30): number {
+  return usePositionSelect(fps, samePosition);
+}
+
+const samePosition = (pos: number) => pos;
+
+/**
+ * 재생 위치에서 고른 값(지금 가사 줄 등). 고른 값이 바뀔 때만 다시 그린다.
+ * 재생 중이고 창이 보일 때만 초당 fps번 시계를 돌린다. 멈춰 있으면 위치가 바뀌지 않으니 재생 상태가 바뀔 때만 다시 고른다.
+ * (예전에는 쓰는 곳마다 requestAnimationFrame을 매 프레임 돌려, 멈춰 있어도 화면 주사율만큼(144Hz 모니터면 초당 144번) 깨어났다.)
+ */
+export function usePositionSelect<T>(fps: number, select: (pos: number) => T): T {
+  const pick = useRef(select);
+  pick.current = select;
   const [pos, setPos] = useState(() => currentPosition(playerStore.get()));
+  const shown = useRef(pos);
   useEffect(() => {
-    let raf = 0;
-    let last = 0;
-    const tick = (t: number) => {
-      if (t - last >= 1000 / fps) {
-        last = t;
-        setPos(currentPosition(playerStore.get()));
-      }
-      raf = requestAnimationFrame(tick);
+    let timer = 0;
+    const update = () => {
+      const next = currentPosition(playerStore.get());
+      if (Object.is(pick.current(next), pick.current(shown.current))) return;
+      shown.current = next;
+      setPos(next);
     };
-    raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
+    const arm = () => {
+      window.clearInterval(timer);
+      timer = 0;
+      update();
+      const s = playerStore.get();
+      if (s.playing && !s.buffering && !document.hidden) timer = window.setInterval(update, 1000 / fps);
+    };
+    arm();
+    const stop = playerStore.subscribe(arm);
+    document.addEventListener('visibilitychange', arm);
+    return () => {
+      window.clearInterval(timer);
+      stop();
+      document.removeEventListener('visibilitychange', arm);
+    };
   }, [fps]);
-  return pos;
+  return select(pos);
 }
 
 export function formatTime(seconds: number | undefined): string {

@@ -127,6 +127,9 @@ pub(crate) struct AppState {
     ui_strings: Mutex<std::collections::HashMap<String, String>>,
     tray_items: Mutex<Option<TrayItems>>,
     quitting: AtomicBool,
+    /// 창마다 웹뷰에 마지막으로 알린 보임 상태(sync_page_visibility). 같은 값을 거듭 알리지 않는다.
+    #[cfg_attr(not(windows), allow(dead_code))]
+    page_visible: Mutex<std::collections::HashMap<String, bool>>,
 }
 
 struct TrayItems {
@@ -182,6 +185,11 @@ pub(crate) fn on_track_state(app: &AppHandle, state: TrackState) {
     let prev = std::mem::replace(&mut *lock(&app.state::<AppState>().track), next.clone());
     if prev.label() != next.label() || prev.playing != next.playing {
         update_labels(app, &next);
+    }
+    if prev.playing != next.playing {
+        if let Some(engine) = app.get_webview_window(ENGINE) {
+            sync_page_visibility(&engine);
+        }
     }
     if prev.video_id != next.video_id || prev.title != next.title {
         desktop::on_track_changed(app, &prev, &next);
@@ -307,7 +315,53 @@ pub(crate) fn show_main(app: &AppHandle) {
         warn("창 최소화 풀기", window.unminimize());
         warn("창 보이기", window.show());
         warn("창 앞으로", window.set_focus());
+        sync_page_visibility(&window);
     }
+}
+
+/// 창이 숨었거나 최소화됐는지를 웹뷰 안의 페이지에도 알린다(윈도우만). 창을 보이거나 숨긴 뒤, 크기가 바뀔 때 부른다.
+///
+/// 윈도우 WebView2는 창을 숨기거나 최소화해도 페이지가 그것을 모른 채 계속 그린다(WebView2 문서는 최소화할 때
+/// 앱이 IsVisible을 직접 끄라고 권하고, Tauri·wry는 이를 하지 않는다). 그래서 트레이로 숨긴 앱 화면과
+/// 숨은 엔진 창(YouTube Music 웹 전체)이 보이는 페이지처럼 애니메이션·영상을 계속 그리며 앱 화면과 그래픽 처리를 나눠 썼다.
+/// 맥 WKWebView는 창이 가려지면 알아서 그리기를 멈추므로 할 일이 없다.
+pub(crate) fn sync_page_visibility(window: &WebviewWindow) {
+    // 여러 스레드에서 불러도 알리는 순서가 뒤섞이지 않게, 메인 스레드에서 차례로 그때의 상태로 정한다.
+    // (웹뷰 이벤트를 처리하는 도중에 웹뷰를 건드리지 않는 효과도 있다.)
+    #[cfg(windows)]
+    {
+        let target = window.clone();
+        warn(
+            "웹뷰 보임 상태 맞추기 예약",
+            window.run_on_main_thread(move || apply_page_visibility(&target)),
+        );
+    }
+    #[cfg(not(windows))]
+    let _ = window;
+}
+
+#[cfg(windows)]
+fn apply_page_visibility(window: &WebviewWindow) {
+    let app = window.app_handle();
+    let shown = window.is_visible().unwrap_or(true) && !window.is_minimized().unwrap_or(false);
+    // 엔진 창은 숨어 있어도 재생 중일 때만 페이지를 숨긴다. 크로미움은 소리가 나지 않는 숨은 페이지의 타이머를
+    // 1초 단위로 묶고, 재생한 적 없는 숨은 페이지의 미디어 불러오기를 미룰 수 있다(멈춘 상태에서 곡을 틀 때 늦어진다).
+    // 소리가 나는 동안에는 그런 제한이 없고, 멈춰 있을 때는 페이지가 그릴 것이 거의 없다.
+    // 페이지를 새로 불러오는 중(준비 전)에도 숨기지 않는다.
+    let visible = shown
+        || (window.label() == ENGINE
+            && !(lock(&app.state::<AppState>().track).playing && app.state::<Engine>().ready()));
+    let label = window.label().to_owned();
+    if lock(&app.state::<AppState>().page_visible).insert(label.clone(), visible) == Some(visible) {
+        return;
+    }
+    let result = window.with_webview(move |webview| {
+        // SAFETY: with_webview는 이 웹뷰의 컨트롤러를 메인 스레드에서 넘겨준다.
+        if let Err(err) = unsafe { webview.controller().SetIsVisible(visible) } {
+            eprintln!("[ytm-desktop] 웹뷰 보임 상태 알리기 실패({label}): {err}");
+        }
+    });
+    warn("웹뷰 보임 상태 알리기", result);
 }
 
 pub(crate) fn quit(app: &AppHandle) {
@@ -397,12 +451,13 @@ fn build_engine_window(app: &AppHandle) -> tauri::Result<WebviewWindow> {
             }
             NewWindowResponse::Deny
         })
-        .on_page_load(move |_window, payload| {
+        .on_page_load(move |window, payload| {
             if payload.event() == PageLoadEvent::Started {
                 // 페이지가 새로 뜨면 엔진 스크립트도 새로 시작한다. 기다리던 요청은 답을 받을 수 없다.
                 let engine = load_handle.state::<Engine>();
                 engine.mark_navigating();
                 engine.fail_pending("engine_navigating");
+                sync_page_visibility(&window);
             }
         });
     if let Some(user_agent) = USER_AGENT {
@@ -424,6 +479,7 @@ fn show_engine_window(app: &AppHandle, url: Option<&str>) {
     }
     warn("엔진 창 보이기", window.show());
     warn("엔진 창 앞으로", window.set_focus());
+    sync_page_visibility(&window);
 }
 
 /// 화면의 "로그인"·"웹 화면 열기".
@@ -450,6 +506,7 @@ fn hide_engine(app: AppHandle) {
     app.state::<Engine>().set_login_in_progress(false);
     if let Some(window) = app.get_webview_window(ENGINE) {
         warn("엔진 창 숨기기", window.hide());
+        sync_page_visibility(&window);
     }
 }
 
@@ -721,9 +778,9 @@ pub fn run() {
             eq::eq_visualizer,
         ])
         .on_menu_event(|app, event| on_menu(app, event.id().as_ref()))
-        .on_window_event(|window, event| {
+        .on_window_event(|window, event| match event {
             // 창을 닫아도 음악은 계속 — 숨기기만 하고, 종료는 트레이·메뉴의 "종료"로 한다.
-            if let WindowEvent::CloseRequested { api, .. } = event {
+            WindowEvent::CloseRequested { api, .. } => {
                 let app = window.app_handle();
                 if app.state::<AppState>().quitting.load(Ordering::SeqCst) {
                     return;
@@ -741,7 +798,21 @@ pub fn run() {
                     }
                 }
                 warn("창 숨기기", window.hide());
+                if let Some(webview) = app.get_webview_window(window.label()) {
+                    sync_page_visibility(&webview);
+                }
             }
+            // 최소화·복원도 크기 바뀜으로 온다. 혹시 놓쳐도 창이 활성화될 때 다시 맞춘다.
+            WindowEvent::Resized(_) | WindowEvent::Focused(true) => {
+                if let Some(webview) = window.app_handle().get_webview_window(window.label()) {
+                    sync_page_visibility(&webview);
+                }
+            }
+            // 같은 이름으로 새로 만드는 창(미니 플레이어)은 웹뷰도 새것이라 알린 상태를 잊는다.
+            WindowEvent::Destroyed => {
+                lock(&window.app_handle().state::<AppState>().page_visible).remove(window.label());
+            }
+            _ => {}
         })
         .setup(|app| {
             let handle = app.handle();
@@ -755,7 +826,8 @@ pub fn run() {
             app.set_menu(build_app_menu(handle)?)?;
 
             let main = build_main_window(handle)?;
-            build_engine_window(handle)?;
+            let engine = build_engine_window(handle)?;
+            sync_page_visibility(&engine);
             #[cfg(target_os = "macos")]
             mac_tap::init(handle);
             if parallel() {

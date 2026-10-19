@@ -77,6 +77,7 @@ pub async fn set_video(app: &AppHandle, open: bool) -> Result<(), String> {
         warn("영상 창 어두운 테마", window.set_theme(Some(tauri::Theme::Dark)));
         warn("영상 창 보이기", window.show());
         warn("영상 창 앞으로", window.set_focus());
+        crate::sync_page_visibility(&window);
         engine::call(app, "videoView", view).await?;
     } else if extras.video.swap(false, Ordering::SeqCst) {
         if let Err(err) = engine::call(app, "videoView", json!({ "on": false })).await {
@@ -84,6 +85,7 @@ pub async fn set_video(app: &AppHandle, open: bool) -> Result<(), String> {
         }
         restore_engine_window(&window);
         warn("영상 창 숨기기", window.hide());
+        crate::sync_page_visibility(&window);
     }
     emit_ui(app, "video-window", open);
     Ok(())
@@ -171,6 +173,7 @@ pub(crate) fn open_mini(app: &AppHandle, open: bool) -> Result<(), String> {
         if open {
             warn("미니 플레이어 보이기", window.show());
             warn("미니 플레이어 앞으로", window.set_focus());
+            crate::sync_page_visibility(&window);
         } else {
             warn("미니 플레이어 닫기", window.close());
         }

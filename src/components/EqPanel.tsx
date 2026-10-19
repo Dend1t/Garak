@@ -58,7 +58,15 @@ function Spectrum() {
     const shown: number[] = [];
     const peaks: number[] = [];
     let raf = 0;
-    const draw = () => {
+    let last = 0;
+    const draw = (now: number) => {
+      raf = requestAnimationFrame(draw);
+      // 초당 60번까지만 그린다(주사율이 높은 모니터에서 매 프레임 그리지 않게). 따라가기·내려오기는 시간 기준이라 빠르기가 같다.
+      if (last && now - last < 1000 / 60 - 4) return;
+      const dt = last ? Math.min(0.1, (now - last) / 1000) : 1 / 60;
+      last = now;
+      const follow = reduce ? 1 : 1 - Math.pow(0.65, dt * 60);
+      const fall = 0.48 * dt;
       const dpr = window.devicePixelRatio || 1;
       const w = el.clientWidth;
       const h = el.clientHeight;
@@ -75,20 +83,22 @@ function Spectrum() {
       const grad = ctx.createLinearGradient(0, h, 0, 0);
       grad.addColorStop(0, colors.low);
       grad.addColorStop(1, colors.high);
+      // 막대와 꼭짓점을 각각 한 번에 칠한다.
+      const tops = new Path2D();
+      ctx.beginPath();
       for (let i = 0; i < n; i++) {
         const v = (bars[i] ?? 0) / 255;
-        shown[i] = reduce ? v : (shown[i] ?? 0) + (v - (shown[i] ?? 0)) * 0.35;
-        peaks[i] = Math.max(shown[i], (peaks[i] ?? 0) - 0.008);
+        shown[i] = (shown[i] ?? 0) + (v - (shown[i] ?? 0)) * follow;
+        peaks[i] = Math.max(shown[i], (peaks[i] ?? 0) - fall);
         const x = i * (bw + gap);
         const bh = Math.max(2, shown[i] * (h - 6));
-        ctx.fillStyle = grad;
-        ctx.beginPath();
         ctx.roundRect(x, h - bh, bw, bh, Math.min(2, bw / 2));
-        ctx.fill();
-        ctx.fillStyle = colors.peak;
-        ctx.fillRect(x, h - Math.max(2, peaks[i] * (h - 6)) - 3, bw, 2);
+        tops.rect(x, h - Math.max(2, peaks[i] * (h - 6)) - 3, bw, 2);
       }
-      raf = requestAnimationFrame(draw);
+      ctx.fillStyle = grad;
+      ctx.fill();
+      ctx.fillStyle = colors.peak;
+      ctx.fill(tops);
     };
     raf = requestAnimationFrame(draw);
     return () => {

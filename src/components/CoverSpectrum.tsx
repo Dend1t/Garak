@@ -7,6 +7,12 @@ import { cssColor, onThemeColors } from '../lib/theme';
 const BARS = 48;
 /** 화면 색이 바뀌면(앨범 색 테마에서 곡이 바뀌면) 이전 색에서 새 색으로 이만큼(ms) 걸려 넘어간다. */
 const FADE_MS = 600;
+/**
+ * 그리는 간격(ms): 소리에 맞춰 움직일 때는 초당 60번, 쉬는 점만 숨 쉴 때는 초당 20번.
+ * 화면 주사율마다 그리면 144Hz 모니터에서 초당 144번 그린다. 받는 막대는 초당 25번이라 60번이면 충분히 부드럽다.
+ */
+const LIVE_FRAME_MS = 1000 / 60;
+const IDLE_FRAME_MS = 1000 / 20;
 
 type Rgb = [number, number, number];
 const mix = (a: Rgb, b: Rgb, k: number) => a.map((v, i) => v + (b[i] - v) * k) as Rgb;
@@ -86,6 +92,11 @@ export function CoverSpectrum({ playing, width, className = 'lyrics__aura' }: { 
     let lastFrame = 0;
     let raf = 0;
     const draw = (now: number) => {
+      raf = requestAnimationFrame(draw);
+      // 0.4초 안에 받은 값이 있으면 소리에 맞춰, 아니면 쉬는 점으로
+      const live = now - barsAt.current < 400;
+      // 주사율에 따라 프레임 간격이 조금씩 흔들리므로 4ms 여유를 둔다.
+      if (lastFrame && now - lastFrame < (live ? LIVE_FRAME_MS : IDLE_FRAME_MS) - 4) return;
       const dpr = window.devicePixelRatio || 1;
       const w = el.clientWidth;
       const h = el.clientHeight;
@@ -98,8 +109,7 @@ export function CoverSpectrum({ playing, width, className = 'lyrics__aura' }: { 
 
       const dt = lastFrame ? Math.min(0.1, (now - lastFrame) / 1000) : 1 / 60;
       lastFrame = now;
-      // 0.4초 안에 받은 값이 있으면 소리에 맞춰, 아니면 쉬는 점으로
-      const live = now - barsAt.current < 400;
+      if (!w || !h) return;
       if (!live) {
         goal.fill(0);
       } else if (barsAt.current !== seen) {
@@ -139,13 +149,14 @@ export function CoverSpectrum({ playing, width, className = 'lyrics__aura' }: { 
         // 쉬는 동안에는 왼쪽에서 오른쪽으로 물결치듯 아주 조금 오르내린다.
         const breathe = reduce ? 0 : ((Math.sin(t * 1.7 - i * 0.38) + 1) / 2) * (1 - Math.min(1, v * 4)) * 3;
         const bh = Math.min(area, dot + v * (area - dot) + breathe);
+        // 빛 번짐(shadowBlur)은 흐리게 처리할 넓이만큼 든다. 세기별로 막대를 묶어 한 번에 칠해 보니 넓이가 커져 오히려 느렸다
+        // (2026-10-19 크로미움 측정 0.92ms → 1.37ms). 그래서 막대마다 칠하고, 대신 그리는 횟수를 줄였다(위 *_FRAME_MS).
         ctx.globalAlpha = 0.5 + 0.5 * Math.min(1, v * 1.6);
         ctx.shadowBlur = 6 + 14 * v;
         ctx.beginPath();
         ctx.roundRect(i * (bw + gap), h - bh, bw, bh, bw / 2);
         ctx.fill();
       }
-      raf = requestAnimationFrame(draw);
     };
     raf = requestAnimationFrame(draw);
     return () => {

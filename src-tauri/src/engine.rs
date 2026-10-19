@@ -39,7 +39,9 @@ pub struct EngineStatus {
     pub subscriber: bool,
 }
 
-type Reply = Result<Value, String>;
+/// 엔진의 답: 성공이면 JSON 글 그대로. YouTube Music 원본 응답은 수백 KB~수 MB라 화면에 넘길 때 다시 해석·직렬화하지 않는다
+/// (윈도우는 창 사이 통신을 메인 스레드에서 처리해서, 큰 값을 다루는 동안 창 입력·그리기가 함께 멈췄다).
+type Reply = Result<String, String>;
 
 pub struct Engine {
     next_id: AtomicU64,
@@ -79,15 +81,28 @@ impl Engine {
     pub fn mark_navigating(&self) {
         self.status.send_modify(|s| s.ready = false);
     }
+
+    /// 엔진 스크립트가 준비됐는지(페이지를 새로 불러오는 중이 아닌지).
+    #[cfg_attr(not(windows), allow(dead_code))]
+    pub fn ready(&self) -> bool {
+        self.status.borrow().ready
+    }
 }
 
+/// 화면의 엔진 요청. 답은 엔진이 보낸 JSON 글을 그대로 넘긴다(화면이 받는 값은 전과 같다).
 #[tauri::command]
-pub async fn engine_call(app: AppHandle, method: String, args: Option<Value>) -> Result<Value, String> {
-    call(&app, &method, args.unwrap_or(Value::Null)).await
+pub async fn engine_call(app: AppHandle, method: String, args: Option<Value>) -> Result<tauri::ipc::Response, String> {
+    call_raw(&app, &method, args.unwrap_or(Value::Null)).await.map(tauri::ipc::Response::new)
 }
 
-/// 엔진 창에 요청 하나를 보내고 답을 기다린다.
+/// 엔진 창에 요청 하나를 보내고 답(값)을 기다린다.
 pub async fn call(app: &AppHandle, method: &str, args: Value) -> Result<Value, String> {
+    let text = call_raw(app, method, args).await?;
+    serde_json::from_str(&text).map_err(|e| format!("engine_bad_reply {e}"))
+}
+
+/// 엔진 창에 요청 하나를 보내고 답을 JSON 글 그대로 기다린다.
+async fn call_raw(app: &AppHandle, method: &str, args: Value) -> Reply {
     if !METHODS.contains(&method) && !DEBUG_METHODS.contains(&method) {
         return Err(format!("unknown_method {method}"));
     }
@@ -148,21 +163,30 @@ pub struct EngineReply {
     ok: bool,
     #[serde(default)]
     data: Value,
+    /// 엔진이 답을 미리 JSON 글로 바꿔 보낸 것(데스크톱 engine.js). 있으면 data 대신 쓴다.
+    /// 큰 답을 값 나무로 풀지 않고 글 하나로 받아 그대로 화면에 넘기기 위함이다.
+    #[serde(default)]
+    json: Option<String>,
     #[serde(default)]
     error: Option<String>,
 }
 
-#[tauri::command]
+/// 엔진의 답. 큰 글을 검사하는 동안 메인 스레드를 잡지 않게 작업 스레드에서 받는다(답은 번호로 짝을 찾으므로 순서는 상관없다).
+#[tauri::command(async)]
 pub fn engine_reply(app: AppHandle, webview: Webview, reply: EngineReply) {
     if webview.label() != ENGINE {
         return;
     }
     let tx = lock(&app.state::<Engine>().pending).remove(&reply.id);
     if let Some(tx) = tx {
-        let result = if reply.ok {
-            Ok(reply.data)
-        } else {
-            Err(reply.error.unwrap_or_else(|| "engine_error".into()))
+        let result = match (reply.ok, reply.json) {
+            // 웹 페이지가 보낸 글이라 올바른 JSON인지 확인한 뒤 넘긴다(화면에서 스크립트로 실행될 수 있다).
+            // 값을 만들지 않고 훑기만 해서 해석보다 훨씬 가볍다.
+            (true, Some(text)) => serde_json::from_str::<serde::de::IgnoredAny>(&text)
+                .map(|_| text)
+                .map_err(|e| format!("engine_bad_reply {e}")),
+            (true, None) => Ok(reply.data.to_string()),
+            (false, _) => Err(reply.error.unwrap_or_else(|| "engine_error".into())),
         };
         // 기다리던 쪽이 시간 초과로 이미 끝났으면 버린다.
         let _ = tx.send(result);
@@ -203,6 +227,10 @@ fn on_status(app: &AppHandle, data: Value) {
             warn("엔진 창 숨기기", window.hide());
         }
         crate::show_main(app);
+    }
+    // 준비 여부에 따라 숨은 엔진 페이지를 숨길 수 있는지가 달라진다(sync_page_visibility).
+    if let Some(window) = app.get_webview_window(ENGINE) {
+        crate::sync_page_visibility(&window);
     }
     crate::emit_ui(app, "engine-status", &status);
 }
@@ -370,6 +398,7 @@ fn debug_window(app: &AppHandle, args: &Value) -> Result<Value, String> {
     } else if args["show"].as_bool() == Some(false) {
         window.hide().map_err(|e| e.to_string())?;
     }
+    crate::sync_page_visibility(&window);
     Ok(Value::Bool(true))
 }
 

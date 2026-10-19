@@ -1,18 +1,19 @@
 // 미니 플레이어 창(index.html#mini): 늘 위에 떠 있는 작은 재생기. 큰 창과 같은 엔진 상태를 받아 그린다.
 // 표지 오른쪽에 지금 부르는 가사 두 줄(지금 줄·다음 줄)이 작게 나오고(가사 단추로 끄고 켬), 다음 트랙 단추를 누르면 창이 아래로 늘어나
 // 다음 곡 목록이 나온다(펼친 동안은 세로 길이를 마우스로 늘이고 줄인다). 진행 막대는 눌러서·끌어서 옮긴다.
-import { useEffect, useRef, useState, type CSSProperties } from 'react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { currentMonitor, getCurrentWindow, LogicalSize, PhysicalPosition } from '@tauri-apps/api/window';
 import { t } from '../i18n';
 import { useLang } from '../i18n/react';
 import * as ytm from '../lib/ytm/client';
 import { miniPin } from '../lib/tauri';
+import { useSoftArt } from '../lib/softArt';
 import { startAlbumTheme } from '../lib/theme';
 import { startLibrarySync, toggleLike, useLiked } from '../state/library';
 import { useTrackLyrics } from '../state/lyrics';
 import { activeLine } from '../lib/lyrics';
-import { formatTime, patchPlayer, playerStore, startPlayerSync, usePlayer, usePosition } from '../state/player';
+import { formatTime, patchPlayer, playerStore, startPlayerSync, usePlayer, usePosition, usePositionSelect } from '../state/player';
 import { toastError } from '../state/ui';
 import { Toasts } from './ContextMenu';
 import { Cover } from './Cover';
@@ -231,10 +232,10 @@ function MiniQueue() {
 function MiniLyricLines() {
   const ad = usePlayer((s) => s.ad);
   const { lyrics, loading, offset, shift } = useTrackLyrics();
-  const position = usePosition(4);
-  const lines = !loading && !ad ? (lyrics?.synced?.filter((l) => l.text.trim()) ?? []) : [];
+  const lines = useMemo(() => (!loading && !ad ? (lyrics?.synced?.filter((l) => l.text.trim()) ?? []) : []), [lyrics, loading, ad]);
+  // 줄이 바뀔 때만 다시 그린다.
+  const at = usePositionSelect(4, (pos) => activeLine(lines, pos + offset + shift));
   if (!lines.length) return null;
-  const at = activeLine(lines, position + offset + shift);
   const now = at >= 0 ? lines[at].text : '';
   const next = lines[at + 1]?.text ?? '';
   return (
@@ -260,6 +261,8 @@ export function MiniApp() {
   const playing = usePlayer((s) => s.playing);
   const ad = usePlayer((s) => s.ad);
   const liked = useLiked(videoId);
+  // 미니 창 너비(약 460px)에 깔면 반경 8이 원래 CSS blur(40px)와 비슷하다.
+  const soft = useSoftArt(artwork, 8);
   const [pinned, setPinned] = useState(true);
   const [queueOpen, setQueueOpen] = useState(() => loadFlag(QUEUE_KEY, false));
   const [showLyrics, setShowLyrics] = useState(() => loadFlag(LYRICS_KEY, true));
@@ -321,8 +324,11 @@ export function MiniApp() {
   };
 
   return (
-    <div className={`mini-app${mac ? ' mini-app--mac' : ''}${queueOpen ? ' is-open' : ''}`} style={{ '--art': artwork ? `url("${artwork}")` : 'none' } as CSSProperties}>
-      <div className="mini-app__backdrop" aria-hidden="true" />
+    <div
+      className={`mini-app${mac ? ' mini-app--mac' : ''}${queueOpen ? ' is-open' : ''}`}
+      style={{ '--art': artwork ? `url("${artwork}")` : 'none', '--art-soft': soft ? `url("${soft}")` : 'none' } as CSSProperties}
+    >
+      <div className={`mini-app__backdrop${soft ? ' is-soft' : ''}`} aria-hidden="true" />
       <div className="mini-app__drag" data-tauri-drag-region>
         <span data-tauri-drag-region>Garak</span>
         <div className="mini-app__top-tools">

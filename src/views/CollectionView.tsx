@@ -1,4 +1,4 @@
-import { createElement, useCallback, useEffect, useMemo, useRef, useState, type MouseEvent } from 'react';
+import { createElement, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState, type MouseEvent } from 'react';
 import { locale, t, tk } from '../i18n';
 import { matchesTerms, searchTerms } from '../lib/textMatch';
 import { sortTracks, TRACK_SORTS, type TrackSort } from '../lib/trackSort';
@@ -151,7 +151,9 @@ export function CollectionView({ kind, id = '' }: { kind: Kind; id?: string }) {
   const [busy, setBusy] = useState(false);
   const [filter, setFilter] = useState('');
   const [sort, setSort] = useState<TrackSort>('default');
-  const terms = useMemo(() => searchTerms(filter), [filter]);
+  // 찾는 글을 칠 때마다 수천 줄을 거르고 다시 그리느라 입력이 끊기지 않게, 목록은 한 박자 늦게(입력이 멈춘 틈에) 따라간다.
+  const deferredFilter = useDeferredValue(filter);
+  const terms = useMemo(() => searchTerms(deferredFilter), [deferredFilter]);
   const filtering = terms.length > 0;
   const sorting = sort !== 'default';
   /** 찾거나 정렬하는 동안은 목록 전체가 필요하다(나머지 쪽을 마저 받는다) */
@@ -208,9 +210,17 @@ export function CollectionView({ kind, id = '' }: { kind: Kind; id?: string }) {
     return sortTracks(list, sort, locale());
   }, [allTracks, terms, filtering, sort]);
   // 정렬한 화면에서는 보이는 순서대로 재생한다(누른 곡부터). 재생할 수 없는 곡은 원래처럼 알림만 띄운다.
+  // 목록이 바뀌어도 같은 함수를 넘겨 줄 전체가 다시 그려지지 않게 지금 목록은 ref로 읽는다.
+  const shownRef = useRef(shown);
+  shownRef.current = shown;
   const playShown = useCallback(
-    (track: Track, index: number) => void (track.available ? playInOrder(shown.slice(index)) : playTrack(track)),
-    [shown],
+    (track: Track, index: number) => void (track.available ? playInOrder(shownRef.current.slice(index)) : playTrack(track)),
+    [],
+  );
+  const setData = res.setData;
+  const onRemoved = useCallback(
+    (track: Track) => setData((prev) => ({ ...prev, tracks: prev.tracks.filter((t) => t.setVideoId !== track.setVideoId) })),
+    [setData],
   );
 
   if ((res.loading && !res.data) || albumRedirect) return <div className="page"><Loading /></div>;
@@ -233,9 +243,6 @@ export function CollectionView({ kind, id = '' }: { kind: Kind; id?: string }) {
     if (h.shuffle) void playEndpoint(h.shuffle, t('셔플 재생'));
     else if (playlistId) void playEndpoint({ watchPlaylistEndpoint: { playlistId, params: 'wAEB8gECKAE%3D' } }, t('셔플 재생'));
   };
-
-  const onRemoved = (track: Track) =>
-    res.setData((prev) => ({ ...prev, tracks: prev.tracks.filter((t) => t.setVideoId !== track.setVideoId) }));
 
   /** 끌어서 순서 바꾸기: 옮긴 곡을 새 자리 다음 곡 앞으로(맨 끝이면 맨 뒤로) */
   const reorder = async (from: number, to: number) => {
