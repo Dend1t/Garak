@@ -1,7 +1,7 @@
 {
   "name": "ytm-desktop",
   "private": true,
-  "version": "0.2.12",
+  "version": "0.2.13",
   "license": "MIT",
   "scripts": {
     "dev": "tauri dev",

@@ -1,6 +1,6 @@
 [package]
 name = "ytm-desktop"
-version = "0.2.12"
+version = "0.2.13"
 description = "YouTube Music 계정으로 쓰는 데스크톱 음악 플레이어 (맥·윈도우)"
 license = "MIT"
 repository = "https://github.com/hanseihee/ytm"
