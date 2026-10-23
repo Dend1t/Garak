@@ -18,8 +18,8 @@ settings:
     # 화면 문구는 문자열 카탈로그(Localizable.xcstrings, 한국어 문구가 키)로 번역한다.
     SWIFT_EMIT_LOC_STRINGS: YES
     LOCALIZATION_PREFERS_STRING_CATALOGS: YES
-    MARKETING_VERSION: "0.2.13"
-    CURRENT_PROJECT_VERSION: "14"
+    MARKETING_VERSION: "0.2.14"
+    CURRENT_PROJECT_VERSION: "15"
 targets:
   YTM:
     type: application
