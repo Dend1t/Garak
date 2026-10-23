@@ -1,11 +1,12 @@
 // 둘러보기: 분위기·장르 단추, 최신 음악, YouTube Music 차트(나라 고르기).
-import { useState, type CSSProperties } from 'react';
+import { useState } from 'react';
 import { t } from '../i18n';
 import { regionName } from '../lib/charts';
 import { useAsync } from '../lib/useAsync';
 import * as ytm from '../lib/ytm/client';
 import { go } from '../state/nav';
 import { ShelfView } from '../components/Cards';
+import { Icon } from '../components/Icon';
 import { ErrorState, Loading } from './common';
 
 /** YouTube Music 차트 나라(ISO 코드, 전 세계는 ZZ) */
@@ -67,10 +68,10 @@ export function ExploreView() {
                     key={m.params ?? m.label}
                     type="button"
                     className="mood"
-                    style={{ '--mood': m.color ?? 'var(--rose)' } as CSSProperties}
                     onClick={() => m.params && go({ name: 'mood', params: m.params, title: m.label })}
                   >
-                    {m.label}
+                    <span className="mood__label">{m.label}</span>
+                    <Icon name="forward" size={16} className="mood__go" />
                   </button>
                 ))}
               </div>

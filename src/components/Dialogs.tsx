@@ -93,7 +93,7 @@ export function NewPlaylistDialog({ tracks = [], onCreated }: { tracks?: Track[]
         <legend className="field__label">{t('공개 범위')}</legend>
         <div className="segmented">
           {PRIVACY.map((p) => (
-            <label key={p.value} className={`segmented__item${privacy === p.value ? ' is-on' : ''}`} title={t(p.hint)}>
+            <label key={p.value} className={`segmented__item${privacy === p.value ? ' is-on' : ''}`} data-tip={t(p.hint)}>
               <input type="radio" name="privacy" value={p.value} checked={privacy === p.value} onChange={() => setPrivacy(p.value)} />
               {t(p.label)}
             </label>

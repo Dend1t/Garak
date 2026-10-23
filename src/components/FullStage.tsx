@@ -1,5 +1,5 @@
 // 전체 화면 모드: 모니터에 틀어 두는 화면(YouTube 플레이리스트 채널 essential; 영상처럼 차분하게).
-// 흐린 표지 배경 위에 큰 앨범 표지, 앨범·제목·가수, 위로 굴러 올라가는 가사(지난 줄·지금 줄·다음 줄이 보인다), 스펙트럼, 맨 아래 얇은 진행 막대.
+// 흐린 표지 배경 위에 큰 앨범 표지, 앨범·제목·가수, 위로 굴러 올라가는 가사(지난 줄·지금 줄·다음 줄이 보인다), 스펙트럼, 맨 아래 얇은 진행 막대(누르거나 끌어서 옮긴다).
 // 마우스를 3초 움직이지 않으면 커서와 조작 단추를 숨긴다. 이 모드 동안은 화면이 꺼지지 않는다. Esc로 나간다.
 import { invoke } from '@tauri-apps/api/core';
 import { getCurrentWindow } from '@tauri-apps/api/window';
@@ -9,11 +9,12 @@ import { t } from '../i18n';
 import { activeLine, type LyricLine, type Lyrics } from '../lib/lyrics';
 import { useSoftArt } from '../lib/softArt';
 import * as ytm from '../lib/ytm/client';
-import { formatTime, patchPlayer, playerStore, usePlayer, usePosition, usePositionSelect } from '../state/player';
+import { formatTime, patchPlayer, playerStore, usePlayer, usePositionSelect } from '../state/player';
 import { toastError } from '../state/ui';
 import { Cover, largeArt } from './Cover';
 import { CoverSpectrum } from './CoverSpectrum';
 import { Icon } from './Icon';
+import { useSeekBar } from './useSeekBar';
 
 /** 이만큼 움직임이 없으면 커서·조작 단추를 숨긴다 */
 const IDLE_MS = 3000;
@@ -30,7 +31,6 @@ export function FullStage({ lyrics, offset, onExit }: { lyrics?: Lyrics | null; 
   const album = usePlayer((s) => s.album);
   const artwork = usePlayer((s) => s.artwork);
   const playing = usePlayer((s) => s.playing);
-  const duration = usePlayer((s) => s.duration);
   const ad = usePlayer((s) => s.ad);
   const [idle, setIdle] = useState(false);
   const exit = useRef(onExit);
@@ -108,7 +108,7 @@ export function FullStage({ lyrics, offset, onExit }: { lyrics?: Lyrics | null; 
     >
       <div className={`stage__bg${soft ? ' is-soft' : ''}`} aria-hidden="true" />
       <div className="stage__shade" aria-hidden="true" />
-      <button type="button" className="icon-btn stage__exit" aria-label={t('전체 화면 끝내기')} title={t('전체 화면 끝내기 (Esc)')} onClick={onExit}>
+      <button type="button" className="icon-btn stage__exit" aria-label={t('전체 화면 끝내기')} data-tip-key="Esc" onClick={onExit}>
         <Icon name="close" size={22} />
       </button>
 
@@ -135,23 +135,30 @@ export function FullStage({ lyrics, offset, onExit }: { lyrics?: Lyrics | null; 
             <Icon name="next" size={24} />
           </button>
         </div>
-        <StageProgress duration={duration} />
+        <StageProgress />
       </footer>
     </div>,
     document.body,
   );
 }
 
-function StageProgress({ duration }: { duration: number }) {
-  const position = usePosition(8);
-  const pct = duration > 0 ? Math.min(100, (position / duration) * 100) : 0;
+/** 맨 아래 얇은 진행 막대: 누르거나 끌어서 옮긴다(가리키면 굵어지고 손잡이가 나온다). 동작은 useSeekBar. */
+function StageProgress() {
+  const seek = useSeekBar(8);
   return (
-    <div className="stage__progress" aria-hidden="true">
-      <span>{formatTime(position)}</span>
-      <div className="stage__bar">
-        <span style={{ width: `${pct}%` }} />
+    <div className="stage__progress">
+      <span aria-hidden="true">{formatTime(seek.value)}</span>
+      <div
+        {...seek.props}
+        className={`stage__seek${seek.dragging ? ' is-dragging' : ''}${seek.disabled ? ' is-disabled' : ''}`}
+        style={{ '--fill': `${seek.fill * 100}%` } as CSSProperties}
+      >
+        <span className="stage__bar">
+          <span />
+        </span>
+        <span className="stage__knob" />
       </div>
-      <span>{formatTime(duration)}</span>
+      <span aria-hidden="true">{formatTime(seek.duration)}</span>
     </div>
   );
 }

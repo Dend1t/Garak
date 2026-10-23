@@ -49,7 +49,7 @@ function Suggestions({ playlistId, title, continuation, revision }: { playlistId
                   type="button"
                   className="icon-btn"
                   aria-label={t('{title} 이 재생목록에 넣기', { title: tr.title })}
-                  title={t('이 재생목록에 넣기')}
+                  data-tip={t('이 재생목록에 넣기')}
                   onClick={async () => {
                     setAdded((s) => new Set(s).add(tr.videoId));
                     await addTracksToPlaylist({ playlistId, title }, [tr]);

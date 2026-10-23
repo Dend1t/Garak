@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-chrome-login-available"
+description = "Enables the chrome_login_available command without any pre-configured scope."
+commands.allow = ["chrome_login_available"]
+
+[[permission]]
+identifier = "deny-chrome-login-available"
+description = "Denies the chrome_login_available command without any pre-configured scope."
+commands.deny = ["chrome_login_available"]

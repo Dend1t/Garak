@@ -22,7 +22,8 @@ const rgb = (c: Rgb) => `rgb(${c.map(Math.round).join(', ')})`;
  * 앨범 표지 아래 스펙트럼: 왼쪽 저음 → 가운데 보컬 → 오른쪽 고음(이퀄라이저 패널과 같은 순서), 은은한 빛과 바닥에 비친 그림자.
  * 처음에는 가운데가 저음인 좌우 대칭이었는데, 패널과 다르게 움직여 보여 같은 순서로 바꿨다(2026-10-14).
  * 색은 테마를 따르고(앨범 색 테마면 표지에서 뽑은 색), 바뀔 때는 0.6초 동안 부드럽게 넘어간다.
- * 맥은 오디오 캡처를 이미 허용했을 때만 움직이고(권한을 묻지 않는다), 멈췄거나 소리 정보가 없으면 작은 점들이 천천히 숨 쉬듯 움직인다.
+ * 맥은 오디오 캡처 권한을 아직 정하지 않았으면 처음 재생할 때 한 번 묻고(거부하면 다시 묻지 않는다) 허용됐을 때만 움직이며,
+ * 멈췄거나 소리 정보가 없으면 작은 점들이 천천히 숨 쉬듯 움직인다.
  */
 export function CoverSpectrum({ playing, width, className = 'lyrics__aura' }: { playing: boolean; width: string; className?: string }) {
   const canvas = useRef<HTMLCanvasElement>(null);

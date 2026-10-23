@@ -194,7 +194,8 @@
     "src/views/SettingsView.tsx"
   ],
   "가사 닫기": [
-    "src/components/LyricsView.tsx"
+    "src/components/LyricsView.tsx",
+    "src/components/PlayerBar.tsx"
   ],
   "가사 보기": [
     "src/components/LyricsView.tsx",
@@ -232,6 +233,9 @@
   ],
   "가장 많이 들은 아티스트": [
     "src/views/StatsView.tsx"
+  ],
+  "가져오는 중…": [
+    "src/components/LoginGate.tsx"
   ],
   "검색": [
     "src/components/Sidebar.tsx",
@@ -350,10 +354,8 @@
     "src/views/CollectionView.tsx"
   ],
   "기본 크기로": [
+    "src/components/LyricsView.tsx",
     "src/views/SettingsView.tsx"
-  ],
-  "기본 크기로 (⌘0)": [
-    "src/components/LyricsView.tsx"
   ],
   "기타 가리기": [
     "src/i18n/rust.ts"
@@ -569,6 +571,15 @@
   "랩/힙합": [
     "src/lib/charts/melonExtra.ts"
   ],
+  "로그아웃": [
+    "src/views/SettingsView.tsx"
+  ],
+  "로그아웃하지 못했습니다": [
+    "src/views/SettingsView.tsx"
+  ],
+  "로그아웃했습니다": [
+    "src/views/SettingsView.tsx"
+  ],
   "로그인 창을 열지 못했습니다": [
     "src/components/LoginGate.tsx"
   ],
@@ -692,9 +703,6 @@
     "src/components/PlayerBar.tsx",
     "src/i18n/rust.ts",
     "src/state/prefs.ts"
-  ],
-  "미니 플레이어 (⌃⌥M)": [
-    "src/components/PlayerBar.tsx"
   ],
   "미니 플레이어 열기": [
     "src/views/SettingsView.tsx"
@@ -863,9 +871,6 @@
     "src/views/ArtistView.tsx"
   ],
   "소리 켜기": [
-    "src/components/PlayerBar.tsx"
-  ],
-  "소리 켜기 (M)": [
     "src/components/PlayerBar.tsx"
   ],
   "소리를 받을 권한이 없습니다. 시스템 설정 → 개인정보 보호 및 보안 → 화면 및 시스템 오디오 녹음에서 Garak을 허용한 뒤 다시 켜세요.": [
@@ -1071,9 +1076,6 @@
     "src/components/PlayerBar.tsx",
     "src/state/volume.ts"
   ],
-  "음소거 (M)": [
-    "src/components/PlayerBar.tsx"
-  ],
   "음소거를 바꾸지 못했습니다": [
     "src/state/volume.ts"
   ],
@@ -1107,6 +1109,9 @@
   "이 순서대로 재생하지 못했습니다": [
     "src/state/library.ts"
   ],
+  "이 앱에서만 로그아웃합니다. 크롬 등 다른 곳의 로그인은 그대로이고, 재생 중인 음악은 멈춥니다.": [
+    "src/views/SettingsView.tsx"
+  ],
   "이 앱이 읽지 않는 사이트입니다.": [
     "src/lib/spotify.ts"
   ],
@@ -1127,8 +1132,8 @@
   ],
   "이동하지 못했습니다": [
     "src/components/LyricsView.tsx",
-    "src/components/MiniApp.tsx",
-    "src/components/PlayerBar.tsx"
+    "src/components/PlayerBar.tsx",
+    "src/components/useSeekBar.ts"
   ],
   "이름": [
     "src/components/Dialogs.tsx"
@@ -1195,9 +1200,6 @@
   "자동 플레이리스트": [
     "src/views/CollectionView.tsx"
   ],
-  "작게 (⌘-)": [
-    "src/components/LyricsView.tsx"
-  ],
   "작은 음량": [
     "src/lib/eq.ts"
   ],
@@ -1216,8 +1218,8 @@
     "src/components/PlayerBar.tsx"
   ],
   "재생 위치": [
-    "src/components/MiniApp.tsx",
-    "src/components/PlayerBar.tsx"
+    "src/components/PlayerBar.tsx",
+    "src/components/useSeekBar.ts"
   ],
   "재생 중": [
     "src/components/TrackList.tsx"
@@ -1294,9 +1296,6 @@
     "src/i18n/rust.ts"
   ],
   "전체 화면 끝내기": [
-    "src/components/FullStage.tsx"
-  ],
-  "전체 화면 끝내기 (Esc)": [
     "src/components/FullStage.tsx"
   ],
   "접기": [
@@ -1481,11 +1480,29 @@
   "취소": [
     "src/components/Dialogs.tsx"
   ],
-  "크게 (⌘=)": [
-    "src/components/LyricsView.tsx"
-  ],
   "크게 볼 것": [
     "src/components/LyricsView.tsx"
+  ],
+  "크롬 '{profile}' 프로필의 로그인을 가져왔습니다": [
+    "src/components/LoginGate.tsx"
+  ],
+  "크롬 로그인 가져오기": [
+    "src/components/LoginGate.tsx"
+  ],
+  "크롬 로그인 정보를 읽지 못했습니다.": [
+    "src/lib/tauri.ts"
+  ],
+  "크롬 로그인을 가져오지 못했습니다": [
+    "src/components/LoginGate.tsx"
+  ],
+  "크롬에 로그인된 YouTube 계정을 그대로 씁니다. 처음에는 맥이 키체인 접근을 물으니 '허용'을 누르세요.": [
+    "src/components/LoginGate.tsx"
+  ],
+  "크롬에 로그인된 YouTube 계정이 없습니다. 크롬에서 YouTube에 로그인한 뒤 다시 시도하세요.": [
+    "src/lib/tauri.ts"
+  ],
+  "크롬을 찾지 못했습니다.": [
+    "src/lib/tauri.ts"
   ],
   "큰 창 열기": [
     "src/components/MiniApp.tsx"
@@ -1495,6 +1512,9 @@
   ],
   "클래식": [
     "src/lib/eq.ts"
+  ],
+  "키체인 접근을 허용해야 가져올 수 있습니다.": [
+    "src/lib/tauri.ts"
   ],
   "테마": [
     "src/i18n/rust.ts",

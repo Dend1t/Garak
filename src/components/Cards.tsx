@@ -44,8 +44,8 @@ export function CardTile({ card }: { card: Card }) {
           </button>
         )}
       </div>
-      <button type="button" className="tile__title" onClick={open} title={card.title}>{card.title}</button>
-      <div className="tile__sub" title={card.subtitle}>{card.subtitle || kindLabel(card.kind)}</div>
+      <button type="button" className="tile__title" onClick={open} data-tip={card.title} data-tip-show="overflow">{card.title}</button>
+      <div className="tile__sub" data-tip={card.subtitle} data-tip-show="overflow">{card.subtitle || kindLabel(card.kind)}</div>
     </div>
   );
 }

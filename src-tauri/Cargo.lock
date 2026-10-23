@@ -5295,6 +5295,7 @@ dependencies = [
  "block2",
  "objc2",
  "objc2-foundation",
+ "objc2-web-kit",
  "rustfft",
  "serde",
  "serde_json",
@@ -5309,6 +5310,8 @@ dependencies = [
  "tokio",
  "ureq",
  "url",
+ "webview2-com",
+ "windows-core",
 ]
 
 [[package]]

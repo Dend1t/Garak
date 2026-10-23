@@ -1,7 +1,7 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "main",
-  "description": "앱 화면·미니 플레이어: 엔진 요청·상태 조회·로그인 창 열기, 이벤트 듣기, 외부 링크 열기, 테마에 맞춘 창 제목 막대·바탕색, 차트 곡 목록 읽기, 영상 창·미니 플레이어·알림·전역 단축키 설정, 전체 화면 모드(창 전체 화면·화면 꺼짐 막기), 미니 플레이어 다음 트랙 펼침(창 크기·위치, 펼친 동안 세로 크기 조절), 알림 권한 확인(알림 플러그인이 화면을 열 때마다 확인하며, 없으면 거부 오류가 난다).",
+  "description": "앱 화면·미니 플레이어: 엔진 요청·상태 조회·로그인 창 열기·크롬 로그인 가져오기(맥)·로그아웃, 이벤트 듣기, 외부 링크 열기, 테마에 맞춘 창 제목 막대·바탕색, 차트 곡 목록 읽기, 영상 창·미니 플레이어·알림·전역 단축키 설정, 전체 화면 모드(창 전체 화면·화면 꺼짐 막기), 미니 플레이어 다음 트랙 펼침(창 크기·위치, 펼친 동안 세로 크기 조절), 알림 권한 확인(알림 플러그인이 화면을 열 때마다 확인하며, 없으면 거부 오류가 난다).",
   "windows": [
     "main",
     "mini"
@@ -16,6 +16,9 @@
     "allow-get-player-state",
     "allow-show-engine",
     "allow-hide-engine",
+    "allow-chrome-login-available",
+    "allow-import-chrome-login",
+    "allow-logout",
     "allow-spotify-playlist",
     "allow-chart-fetch",
     "allow-ui-log",

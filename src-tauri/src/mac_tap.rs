@@ -20,7 +20,7 @@ use objc2_foundation::{NSArray, NSNumber, NSString, NSUUID};
 use rustfft::num_complex::Complex32;
 use rustfft::FftPlanner;
 use serde_json::json;
-use tauri::{AppHandle, Emitter};
+use tauri::{AppHandle, Emitter, Manager as _};
 
 use crate::eq::{coefficients, soft_clip, Biquad, BiquadState, EqSettings};
 
@@ -488,8 +488,9 @@ struct Manager {
     app: Option<AppHandle>,
     settings: EqSettings,
     visualizer_until: Option<Instant>,
-    /// 권한 창을 띄워도 되는 시각화(이퀄라이저 패널)가 켜 둔 기한. 앨범 표지 화면은 권한을 묻지 않는다.
-    prompt_until: Option<Instant>,
+    /// 권한 거부·실패를 화면에 알려도 되는 시각화(이퀄라이저 패널)가 켜 둔 기한.
+    /// 앨범 표지 화면은 권한을 아직 정하지 않았으면 묻기만 하고, 거부·실패는 알리지 않는다.
+    report_until: Option<Instant>,
     running: Option<Running>,
     /// 실패하면 사용자가 설정을 다시 바꿀 때까지 다시 시도하지 않는다.
     failed: Option<&'static str>,
@@ -503,7 +504,7 @@ fn manager() -> &'static Mutex<Manager> {
             app: None,
             settings: EqSettings::default(),
             visualizer_until: None,
-            prompt_until: None,
+            report_until: None,
             running: None,
             failed: None,
             shared: Arc::new(Shared {
@@ -530,23 +531,24 @@ pub fn set_settings(settings: EqSettings) {
     *lock(&m.shared.coefs) = coefficients(&settings, rate);
 }
 
-/// prompt: 오디오 캡처 권한을 아직 정하지 않았으면 물어도 되는지(이퀄라이저 패널은 예, 앨범 표지 화면은 아니오).
-pub fn set_visualizer(on: bool, prompt: bool) {
+/// report: 권한 거부·실패를 화면에 알려도 되는지(이퀄라이저 패널은 예, 앨범 표지 화면은 아니오).
+/// 오디오 캡처 권한을 아직 정하지 않았으면 어느 쪽이든 묻는다.
+pub fn set_visualizer(on: bool, report: bool) {
     let mut m = lock(manager());
     if !on {
         // 탭은 바로 끄지 않고 기한(8초)이 지나면 멈춘다. 앨범 표지 화면이 함께 보고 있으면
         // 끄고 다시 켜느라 소리가 잠깐 끊기지 않게.
-        m.prompt_until = None;
+        m.report_until = None;
         return;
     }
     let now = Instant::now();
     let until = Some(now + Duration::from_secs(8));
-    if prompt {
+    if report {
         // 패널을 새로 열면 지난 실패를 지우고 다시 시도한다.
-        if !m.prompt_until.is_some_and(|t| t > now) {
+        if !m.report_until.is_some_and(|t| t > now) {
             m.failed = None;
         }
-        m.prompt_until = until;
+        m.report_until = until;
     }
     m.visualizer_until = until;
 }
@@ -575,7 +577,7 @@ fn fail(m: &mut Manager, reason: &'static str) -> Option<Running> {
 enum Action {
     None,
     Stop(Running),
-    Start { processes: Vec<AudioObjectID>, settings: EqSettings, shared: Arc<Shared>, may_prompt: bool },
+    Start { processes: Vec<AudioObjectID>, settings: EqSettings, shared: Arc<Shared>, report: bool },
 }
 
 /// 0.5초마다: 켜야 하면 탭을 만들고, 꺼야 하거나 문제가 생기면 없앤다.
@@ -614,7 +616,7 @@ fn tick(app: &AppHandle) {
                     processes,
                     settings: m.settings,
                     shared: m.shared.clone(),
-                    may_prompt: m.settings.enabled || m.prompt_until.is_some_and(|t| t > now),
+                    report: m.settings.enabled || m.report_until.is_some_and(|t| t > now),
                 },
             }
         }
@@ -622,14 +624,22 @@ fn tick(app: &AppHandle) {
     match action {
         Action::None => {}
         Action::Stop(r) => stop(r),
-        Action::Start { processes, settings, shared, may_prompt } => {
+        Action::Start { processes, settings, shared, report } => {
             // 권한부터: 거부돼 있으면 소리를 건드리지 않고 알린다. 아직이면 묻고 답을 기다린다.
-            // 앨범 표지 화면만 스펙트럼을 보고 있으면 묻지도 알리지도 않는다(허용돼 있을 때만 움직인다).
+            // 앨범 표지 화면만 스펙트럼을 보고 있을 때도 아직이면 묻는다(전에는 묻지 않아 이퀄라이저를 켜야만
+            // 움직였다, 2026-10-23). 다만 거부는 알리지 않고, 허용한다는 답을 받았을 때만 탭을 만든다:
+            // TCC를 못 쓰는 macOS라 답을 모르는데 만들면, 거부된 경우 4초 동안 소리가 끊긴 뒤에야 실패로 안다.
             let allowed = match permission() {
                 Permission::Granted => true,
-                _ if !may_prompt => return,
-                Permission::Denied => false,
-                Permission::Unknown => request_permission().unwrap_or(true),
+                Permission::Denied if report => false,
+                Permission::Denied => return,
+                Permission::Unknown if report => request_permission().unwrap_or(true),
+                Permission::Unknown => {
+                    if request_permission() != Some(true) {
+                        return;
+                    }
+                    true
+                }
             };
             if !allowed {
                 let mut m = lock(manager());
@@ -701,7 +711,39 @@ fn spectrum(planner: &mut FftPlanner<f32>, smooth: &mut [f32], shared: &Shared, 
         .collect()
 }
 
+/// 서명이 바뀐 판을 처음 켤 때 한 번 지우는 기록의 표시 파일(앱 데이터 폴더).
+const PERMISSION_RESET_MARKER: &str = "audio-capture-reset-v1";
+
+/// 서명이 바뀐 판을 처음 켤 때 한 번: 예전 서명(0.2.13까지 임시 서명)으로 받은 "시스템 오디오 녹음" 허용이 남아 있으면
+/// macOS는 미리 묻기에는 허용이라 답하면서 탭에는 무음만 준다. 설정 화면에도 허용으로 보여 사용자가 풀 수 없다
+/// (2026-10-23 확인, tccutil reset 뒤 다시 허용하니 됐다). 이 앱의 그 기록만 지워, 다음에 이퀄라이저·스펙트럼을 쓸 때
+/// 권한 창이 다시 뜨게 한다. 0.2.14부터는 Developer ID로 서명해 판이 바뀌어도 허용이 이어지므로 한 번만 한다.
+fn reset_stale_permission_once(app: &AppHandle) {
+    // 개발 빌드는 번들이 아니어서 권한 기록이 따로다.
+    if cfg!(debug_assertions) {
+        return;
+    }
+    let Ok(dir) = app.path().app_data_dir() else { return };
+    let marker = dir.join(PERMISSION_RESET_MARKER);
+    if marker.exists() {
+        return;
+    }
+    // 아직 묻지 않았으면(새로 설치) 지울 것이 없다.
+    if permission() != Permission::Unknown {
+        let id = &app.config().identifier;
+        match std::process::Command::new("/usr/bin/tccutil").args(["reset", "AudioCapture", id]).output() {
+            Ok(out) if out.status.success() => eprintln!("[eq] 서명이 바뀌어 오디오 녹음 허용 기록을 지웠습니다(다음에 켤 때 다시 묻습니다)"),
+            Ok(out) => eprintln!("[eq] 오디오 녹음 허용 기록 지우기 실패: {}", String::from_utf8_lossy(&out.stderr).trim()),
+            Err(err) => eprintln!("[eq] tccutil을 실행하지 못했습니다: {err}"),
+        }
+    }
+    if let Err(err) = std::fs::create_dir_all(&dir).and_then(|()| std::fs::write(&marker, b"")) {
+        eprintln!("[eq] 표시 파일을 남기지 못했습니다(다음 실행 때 다시 지웁니다): {err}");
+    }
+}
+
 pub fn init(app: &AppHandle) {
+    reset_stale_permission_once(app);
     lock(manager()).app = Some(app.clone());
     let a = app.clone();
     std::thread::Builder::new()

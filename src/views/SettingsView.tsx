@@ -1,15 +1,17 @@
 // 설정: 언어, 테마(색)와 가사 글자 크기, 계정·연결.
 import type { CSSProperties } from 'react';
 import { getVersion } from '@tauri-apps/api/app';
-import { useEffect, useState } from 'react';
+import { createElement, useEffect, useState } from 'react';
 import { LANGS, setLangSetting, t, type LangSetting } from '../i18n';
 import { useLangSetting } from '../i18n/react';
 import { setTheme, THEMES, useTheme, type ThemeInfo } from '../lib/theme';
-import { miniWindow, showEngine } from '../lib/tauri';
+import { globalKey, modKey } from '../lib/keys';
+import { logout, miniWindow, showEngine } from '../lib/tauri';
 import { useStore } from '../lib/store';
 import { SHORTCUT_LIST, shortcutFailures, updatePrefs, usePrefs, VOLUME_SHORTCUT_LIST } from '../state/prefs';
 import { useLibrary } from '../state/library';
-import { LYRIC_SCALES, stepLyricScale, toastError, useLyricScale } from '../state/ui';
+import { LYRIC_SCALES, openDialog, stepLyricScale, toast, toastError, useLyricScale } from '../state/ui';
+import { ConfirmDialog } from '../components/Dialogs';
 import { Icon } from '../components/Icon';
 
 function Swatch({ theme }: { theme: ThemeInfo }) {
@@ -50,8 +52,6 @@ function Toggle({ on, label, hint, onChange }: { on: boolean; label: string; hin
 function DesktopPrefs() {
   const prefs = usePrefs((s) => s);
   const failed = useStore(shortcutFailures, (s) => s);
-  const mac = /Mac/i.test(navigator.platform);
-  const mod = mac ? '⌃⌥' : 'Ctrl+Alt+';
   return (
     <section className="settings__section" aria-labelledby="desktop-title">
       <h2 id="desktop-title" className="shelf__title">{t('재생 편의')}</h2>
@@ -63,14 +63,14 @@ function DesktopPrefs() {
           <ul className="shortcut-list">
             {[...SHORTCUT_LIST, ...(prefs.volumeShortcuts ? VOLUME_SHORTCUT_LIST : [])].map((k) => (
               <li key={k.key} className={failed.includes(k.label) ? 'is-failed' : ''}>
-                <kbd>{mod}{k.key}</kbd> {t(k.label)}{failed.includes(k.label) ? ` — ${t('다른 앱이 쓰고 있어 등록하지 못했습니다')}` : ''}
+                <kbd>{globalKey(k.key)}</kbd> {t(k.label)}{failed.includes(k.label) ? ` — ${t('다른 앱이 쓰고 있어 등록하지 못했습니다')}` : ''}
               </li>
             ))}
           </ul>
           <Toggle
             on={prefs.volumeShortcuts}
             label={t('음량도 전역 단축키로')}
-            hint={t('{keys}로 음량을 바꿉니다. 창 정리 앱처럼 같은 키를 쓰는 앱이 있으면 그 앱의 단축키가 듣지 않아 기본은 꺼 두었습니다.', { keys: `${mod}↑ ${mod}↓` })}
+            hint={t('{keys}로 음량을 바꿉니다. 창 정리 앱처럼 같은 키를 쓰는 앱이 있으면 그 앱의 단축키가 듣지 않아 기본은 꺼 두었습니다.', { keys: `${globalKey('↑')} ${globalKey('↓')}` })}
             onChange={(v) => updatePrefs({ volumeShortcuts: v })}
           />
         </>
@@ -86,6 +86,25 @@ export function SettingsView() {
   const theme = useTheme();
   const scale = useLyricScale();
   const account = useLibrary((s) => s.account);
+  const loggedIn = useLibrary((s) => s.status.loggedIn);
+  const askLogout = () =>
+    openDialog(
+      createElement(ConfirmDialog, {
+        title: t('로그아웃'),
+        message: t('이 앱에서만 로그아웃합니다. 크롬 등 다른 곳의 로그인은 그대로이고, 재생 중인 음악은 멈춥니다.'),
+        confirmLabel: t('로그아웃'),
+        onConfirm: async () => {
+          try {
+            await logout();
+            toast(t('로그아웃했습니다'));
+            return true;
+          } catch (err) {
+            toastError(err, t('로그아웃하지 못했습니다'));
+            return false;
+          }
+        },
+      }),
+    );
   const lang = useLangSetting();
   const [version, setVersion] = useState('');
   useEffect(() => {
@@ -147,13 +166,13 @@ export function SettingsView() {
         <h2 id="lyrics-size-title" className="shelf__title">{t('가사 글자 크기')}</h2>
         <div className="settings__row">
           <div className="textsize textsize--large" role="group" aria-label={t('가사 글자 크기')}>
-            <button type="button" className="textsize__btn" aria-label={t('가사 글자 작게')} disabled={scale <= LYRIC_SCALES[0]} onClick={() => stepLyricScale(-1)}>
+            <button type="button" className="textsize__btn" aria-label={t('가사 글자 작게')} data-tip-key={modKey('-')} disabled={scale <= LYRIC_SCALES[0]} onClick={() => stepLyricScale(-1)}>
               <span className="textsize__glyph textsize__glyph--sm" aria-hidden="true">{t('가')}</span>
             </button>
-            <button type="button" className="textsize__value" title={t('기본 크기로')} onClick={() => stepLyricScale(0)}>
+            <button type="button" className="textsize__value" data-tip={t('기본 크기로')} data-tip-key={modKey('0')} onClick={() => stepLyricScale(0)}>
               {Math.round(scale * 100)}%
             </button>
-            <button type="button" className="textsize__btn" aria-label={t('가사 글자 크게')} disabled={scale >= LYRIC_SCALES[LYRIC_SCALES.length - 1]} onClick={() => stepLyricScale(1)}>
+            <button type="button" className="textsize__btn" aria-label={t('가사 글자 크게')} data-tip-key={modKey('=')} disabled={scale >= LYRIC_SCALES[LYRIC_SCALES.length - 1]} onClick={() => stepLyricScale(1)}>
               <span className="textsize__glyph textsize__glyph--lg" aria-hidden="true">{t('가')}</span>
             </button>
           </div>
@@ -175,6 +194,7 @@ export function SettingsView() {
           <button type="button" className="btn btn--quiet" onClick={() => showEngine('web').catch((err) => toastError(err))}>{t('YouTube Music 웹 화면 열기')}</button>
           <button type="button" className="btn btn--quiet" onClick={() => showEngine('login').catch((err) => toastError(err))}>{t('다른 계정으로 로그인')}</button>
           <button type="button" className="btn btn--quiet" onClick={() => showEngine('reload').catch((err) => toastError(err))}>{t('YouTube Music 다시 연결')}</button>
+          {loggedIn && <button type="button" className="btn btn--quiet" onClick={askLogout}>{t('로그아웃')}</button>}
         </div>
         {version && <p className="field__hint">Garak {version}</p>}
       </section>

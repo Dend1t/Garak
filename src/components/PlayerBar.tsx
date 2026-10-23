@@ -10,6 +10,8 @@ import { cancelSleep, SLEEP_MINUTES, sleepLabel, startSleep, startSleepAfterTrac
 import { setVolume, shownVolume, toggleMute, usePendingVolume, VOLUME_STEP } from '../state/volume';
 import { miniWindow, videoWindow } from '../lib/tauri';
 import { useEq } from '../lib/eq';
+import { globalKey, IS_MAC, modKey } from '../lib/keys';
+import { usePrefs } from '../state/prefs';
 import { Cover } from './Cover';
 import { Icon } from './Icon';
 import { trackMenu } from './menus';
@@ -103,7 +105,7 @@ function Volume() {
         type="button"
         className="icon-btn"
         aria-label={muted || shown === 0 ? t('소리 켜기') : t('음소거')}
-        title={muted || shown === 0 ? t('소리 켜기 (M)') : t('음소거 (M)')}
+        data-tip-key="M"
         onClick={() => toggleMute()}
       >
         <Icon name={muted || shown === 0 ? 'mute' : 'volume'} size={19} />
@@ -118,7 +120,7 @@ function Volume() {
         value={shown}
         style={style}
         aria-label={t('음량')}
-        title={t('음량 {n}%', { n: shown })}
+        data-tip={t('음량 {n}%', { n: shown })}
         onChange={(e) => setVolume(Number(e.target.value))}
       />
     </div>
@@ -173,7 +175,7 @@ function SleepButton() {
     openMenu(r.left - 120, r.top - 10, entries, { above: true });
   };
   return (
-    <button type="button" className={`icon-btn sleep-btn${on ? ' is-on' : ''}`} aria-label={on ? t('수면 타이머 {left}', { left: sleepLabel(sleep) }) : t('수면 타이머')} title={t('수면 타이머')} onClick={menu}>
+    <button type="button" className={`icon-btn sleep-btn${on ? ' is-on' : ''}`} aria-label={on ? t('수면 타이머 {left}', { left: sleepLabel(sleep) }) : t('수면 타이머')} data-tip={t('수면 타이머')} onClick={menu}>
       <Icon name="moon" size={18} />
       {on && <span className="sleep-btn__left">{sleepLabel(sleep)}</span>}
     </button>
@@ -195,6 +197,7 @@ export function PlayerBar() {
   const eqOpen = useLayout((s) => s.panel === 'eq');
   const eqOn = useEq((s) => s.enabled);
   const videoOpen = useLayout((s) => s.video);
+  const globalShortcuts = usePrefs((s) => s.globalShortcuts);
   const avAvailable = usePlayer((s) => !!s.avAvailable);
   const avVideo = usePlayer((s) => !!s.avVideo);
   const picture = usePlayer((s) => !!s.avVideo || !!s.hasPicture || !!s.avAvailable);
@@ -233,18 +236,28 @@ export function PlayerBar() {
       <div className="player__now" onContextMenu={onNowContext}>
         {has ? (
           <>
-            <button type="button" className="player__art" aria-label={t('가사 보기')} onClick={() => toggleLyrics()}>
+            <button
+              type="button"
+              className="player__art"
+              aria-label={lyricsOn ? t('가사 닫기') : t('가사 보기')}
+              data-tip={lyricsOn ? t('가사 닫기') : t('가사 보기')}
+              data-tip-key={modKey('L')}
+              onClick={() => toggleLyrics()}
+            >
               <Cover src={artwork} size={56} />
+              <span className="player__art-hint" aria-hidden="true">
+                <Icon name={lyricsOn ? 'shrink' : 'enlarge'} size={24} />
+              </span>
             </button>
             <div className="player__meta">
               {albumId ? (
-                <button type="button" className="player__title link" title={t('{title} — 앨범으로 이동', { title })} onClick={() => go({ name: 'album', id: albumId })}>
+                <button type="button" className="player__title link" data-tip={t('{title} — 앨범으로 이동', { title })} onClick={() => go({ name: 'album', id: albumId })}>
                   {title}
                 </button>
               ) : (
-                <div className="player__title" title={title}>{ad ? t('광고') : title}</div>
+                <div className="player__title" data-tip={title} data-tip-show="overflow">{ad ? t('광고') : title}</div>
               )}
-              <div className="player__artist" title={artist}>
+              <div className="player__artist" data-tip={artist} data-tip-show="overflow">
                 {ad ? 'YouTube Music' : artistRefs.some((a) => a.id) ? <ArtistLinks artists={artistRefs} /> : artist}
               </div>
               <AvToggle compact />
@@ -261,7 +274,7 @@ export function PlayerBar() {
               >
                 <Icon name="heart" size={19} filled={liked} />
               </button>
-              <button type="button" className="icon-btn player__more" aria-label={t('지금 곡 메뉴')} title={t('지금 곡 메뉴')} disabled={ad} onClick={onMore}>
+              <button type="button" className="icon-btn player__more" aria-label={t('지금 곡 메뉴')} disabled={ad} onClick={onMore}>
                 <Icon name="more" size={18} />
               </button>
             </div>
@@ -276,20 +289,20 @@ export function PlayerBar() {
           <button type="button" className="icon-btn" aria-label={t('대기열 섞기')} disabled={!has} onClick={() => run(ytm.control('shuffle'), t('섞지 못했습니다'))}>
             <Icon name="shuffle" size={18} />
           </button>
-          <button type="button" className="icon-btn" aria-label={t('이전 곡')} disabled={!has} onClick={() => run(ytm.control('previous'), t('이전 곡으로 가지 못했습니다'))}>
+          <button type="button" className="icon-btn" aria-label={t('이전 곡')} data-tip-key={modKey('←')} disabled={!has} onClick={() => run(ytm.control('previous'), t('이전 곡으로 가지 못했습니다'))}>
             <Icon name="previous" size={22} />
           </button>
-          <button type="button" className={`play-btn${buffering ? ' is-busy' : ''}`} aria-label={playing ? t('일시정지') : t('재생')} disabled={!has} onClick={toggle}>
+          <button type="button" className={`play-btn${buffering ? ' is-busy' : ''}`} aria-label={playing ? t('일시정지') : t('재생')} data-tip-key="Space" disabled={!has} onClick={toggle}>
             <Icon name={playing ? 'pause' : 'play'} size={22} />
           </button>
-          <button type="button" className="icon-btn" aria-label={t('다음 곡')} disabled={!has} onClick={() => run(ytm.control('next'), t('다음 곡으로 가지 못했습니다'))}>
+          <button type="button" className="icon-btn" aria-label={t('다음 곡')} data-tip-key={modKey('→')} disabled={!has} onClick={() => run(ytm.control('next'), t('다음 곡으로 가지 못했습니다'))}>
             <Icon name="next" size={22} />
           </button>
           <button
             type="button"
             className={`icon-btn repeat${repeat !== 'NONE' ? ' is-on' : ''}`}
             aria-label={t('반복: {mode}', { mode: repeatLabel })}
-            title={repeatLabel}
+            data-tip={t('반복: {mode}', { mode: repeatLabel })}
             disabled={!has}
             onClick={() => run(ytm.control('repeat'), t('반복을 바꾸지 못했습니다'))}
           >
@@ -305,7 +318,6 @@ export function PlayerBar() {
           type="button"
           className={`icon-btn${videoOpen ? ' is-on' : ''}`}
           aria-label={videoOpen ? t('영상 창 닫기') : t('영상 보기')}
-          title={videoOpen ? t('영상 창 닫기') : t('영상 보기')}
           aria-pressed={videoOpen}
           disabled={!has || !picture || ad}
           onClick={() => {
@@ -317,16 +329,17 @@ export function PlayerBar() {
         >
           <Icon name="video" size={19} />
         </button>
-        <button type="button" className={`icon-btn${lyricsOn ? ' is-on' : ''}`} aria-label={t('가사')} aria-pressed={lyricsOn} onClick={() => toggleLyrics()}>
+        <button type="button" className={`icon-btn${lyricsOn ? ' is-on' : ''}`} aria-label={t('가사')} data-tip-key={modKey('L')} aria-pressed={lyricsOn} onClick={() => toggleLyrics()}>
           <Icon name="lyrics" size={19} />
         </button>
-        <button type="button" className={`icon-btn${queueOn ? ' is-on' : ''}`} aria-label={t('대기열')} aria-pressed={queueOn} onClick={() => togglePanel('queue')}>
+        <button type="button" className={`icon-btn${queueOn ? ' is-on' : ''}`} aria-label={t('대기열')} data-tip-key={IS_MAC ? modKey('U') : undefined} aria-pressed={queueOn} onClick={() => togglePanel('queue')}>
           <Icon name="queue" size={19} />
         </button>
         <button
           type="button"
           className={`icon-btn${eqOpen ? ' is-on' : ''}`}
           aria-label={eqOn ? t('이퀄라이저 (켜짐)') : t('이퀄라이저')}
+          data-tip-key={modKey('E')}
           aria-pressed={eqOpen}
           onClick={() => togglePanel('eq')}
         >
@@ -334,7 +347,7 @@ export function PlayerBar() {
           {eqOn && <span className="dot" aria-hidden="true" />}
         </button>
         <SleepButton />
-        <button type="button" className="icon-btn" aria-label={t('미니 플레이어')} title={t('미니 플레이어 (⌃⌥M)')} onClick={() => void miniWindow(true).catch((err) => toastError(err))}>
+        <button type="button" className="icon-btn" aria-label={t('미니 플레이어')} data-tip-key={globalShortcuts ? globalKey('M') : undefined} onClick={() => void miniWindow(true).catch((err) => toastError(err))}>
           <Icon name="mini" size={19} />
         </button>
         <Volume />

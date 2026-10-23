@@ -13,7 +13,7 @@ import { cardMenu } from './menus';
 
 function NavItem({ icon, label, active, onClick }: { icon: IconName; label: string; active: boolean; onClick: () => void }) {
   return (
-    <button type="button" className={`side__nav${active ? ' is-active' : ''}`} aria-current={active ? 'page' : undefined} title={label} onClick={onClick}>
+    <button type="button" className={`side__nav${active ? ' is-active' : ''}`} aria-current={active ? 'page' : undefined} aria-label={label} data-tip={label} data-tip-show="iconic" data-tip-side="right" onClick={onClick}>
       <Icon name={icon} size={20} />
       <span>{label}</span>
     </button>
@@ -65,7 +65,7 @@ export function Sidebar() {
 
   return (
     <nav className="side" aria-label={t('주 메뉴')}>
-      <div className="side__brand" data-tauri-drag-region>
+      <div className="side__brand" data-tauri-drag-region="deep">
         <Logo size={24} />
         <span className="side__brand-text">Garak</span>
       </div>
@@ -91,7 +91,7 @@ export function Sidebar() {
         </button>
       </div>
       <div className="side__list">
-        <button type="button" className={`side__pl${route.name === 'liked' ? ' is-active' : ''}`} title={t('좋아요 표시한 곡')} onClick={() => go({ name: 'liked' })}>
+        <button type="button" className={`side__pl${route.name === 'liked' ? ' is-active' : ''}`} aria-label={t('좋아요 표시한 곡')} data-tip={t('좋아요 표시한 곡')} data-tip-show="iconic" data-tip-side="right" onClick={() => go({ name: 'liked' })}>
           <span className="side__liked" aria-hidden="true"><Icon name="heart" size={16} filled /></span>
           <span className="side__pl-text">
             <span className="side__pl-title">{t('좋아요 표시한 곡')}</span>
@@ -105,23 +105,26 @@ export function Sidebar() {
             className={`side__pl${currentId === p.browseId ? ' is-active' : ''}`}
             onClick={() => p.browseId && go(routeForBrowse(p.browseId))}
             onContextMenu={(e) => playlistMenu(e, p)}
-            title={p.title}
+            aria-label={p.title}
+            data-tip={p.title}
+            data-tip-show="iconic"
+            data-tip-side="right"
           >
             <Cover src={p.thumbnail} size={36} />
             <span className="side__pl-text">
-              <span className="side__pl-title">{p.title}</span>
+              <span className="side__pl-title" data-tip={p.title} data-tip-show="overflow">{p.title}</span>
               <span className="side__pl-sub">{p.subtitle}</span>
             </span>
           </button>
         ))}
       </div>
 
-      <button type="button" className={`side__nav side__settings${route.name === 'settings' ? ' is-active' : ''}`} title={t('설정')} onClick={() => go({ name: 'settings' })}>
+      <button type="button" className={`side__nav side__settings${route.name === 'settings' ? ' is-active' : ''}`} aria-label={t('설정')} data-tip={t('설정')} data-tip-show="iconic" data-tip-side="right" onClick={() => go({ name: 'settings' })}>
         <Icon name="settings" size={20} />
         <span>{t('설정')}</span>
       </button>
       {account && (
-        <button type="button" className="side__account" title={account.name} onClick={accountMenu}>
+        <button type="button" className="side__account" aria-label={account.name} data-tip={account.name} data-tip-show="iconic" data-tip-side="right" onClick={accountMenu}>
           <Cover src={account.photo} size={28} round />
           <span className="side__account-name">{account.name}</span>
           <Icon name="more" size={16} />

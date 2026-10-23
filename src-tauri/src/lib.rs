@@ -5,6 +5,7 @@
 //!   재생 제어를 대신한다. 로그인할 때와 "웹 화면 열기"를 고를 때만 보인다.
 //! - 운영체제 미디어 컨트롤(맥 지금 재생·윈도우 SMTC)·트레이·메뉴는 여기서 붙인다.
 
+mod login;
 mod desktop;
 mod engine;
 mod eq;
@@ -61,6 +62,12 @@ const MAX_TEXT_CHARS: usize = 300;
 const MAX_ARTWORK_URL: usize = 2048;
 /// 트레이 메뉴의 "지금 재생" 줄 최대 글자 수.
 const TRAY_TITLE_CHARS: usize = 40;
+/// 맥 메인 창 신호등 단추 자리: x는 첫 단추 왼쪽(좁은 창의 아이콘 사이드바 72px 안에 세 단추가 다 들어간다),
+/// y는 단추가 위쪽 바(64px)의 가운데(32px)에 오는 값(tao가 제목 막대 칸을 단추 높이 + y로 늘린다. 32면 3px 높았다).
+#[cfg(target_os = "macos")]
+const TRAFFIC_LIGHT_X: f64 = 16.0;
+#[cfg(target_os = "macos")]
+const TRAFFIC_LIGHT_Y: f64 = 35.0;
 /// 앱 화면 배경(로딩 중 흰 화면 깜빡임 방지). styles.css의 --night와 같은 값.
 pub(crate) const MAIN_BACKGROUND: Color = Color(20, 14, 28, 255);
 
@@ -233,6 +240,9 @@ pub(crate) fn tray_texts(app: &AppHandle) -> Vec<String> {
 
 fn update_labels(app: &AppHandle, track: &TrackState) {
     let label = track.label();
+    // 맥은 제목을 숨겼고(build_main_window), 제목을 바꾸면 AppKit이 신호등 단추를 기본 자리로 되돌린다
+    // (tao는 다시 그릴 때와 전체 화면을 나올 때만 다시 옮긴다). 그래서 맥은 창 제목을 "Garak" 그대로 둔다.
+    #[cfg(not(target_os = "macos"))]
     if let Some(window) = app.get_webview_window(MAIN) {
         warn(
             "창 제목 바꾸기",
@@ -420,6 +430,16 @@ fn build_main_window(app: &AppHandle) -> tauri::Result<WebviewWindow> {
             open_external(&popup_handle, &url);
             NewWindowResponse::Deny
         });
+    // 맥: Apple 음악 앱처럼 제목 막대를 없애고 신호등 단추를 사이드바 맨 위 줄에 얹는다. 그 줄은 위쪽 바와 같은
+    // 높이(64px)라 단추의 가운데를 32px에 맞춘다(styles.css :root[data-platform='mac'] .side__brand).
+    // 창 끌기는 화면의 끌기 영역(data-tauri-drag-region)이 받은 첫 클릭으로 하므로, 앞에 있지 않은 창도 첫 클릭을
+    // 화면에 넘긴다(맥 기본값이면 첫 클릭은 창을 앞으로 가져오기만 해서 두 번 눌러야 끌렸다, 2026-10-23).
+    #[cfg(target_os = "macos")]
+    let builder = builder
+        .title_bar_style(tauri::TitleBarStyle::Overlay)
+        .hidden_title(true)
+        .traffic_light_position(tauri::LogicalPosition::new(TRAFFIC_LIGHT_X, TRAFFIC_LIGHT_Y))
+        .accept_first_mouse(true);
     #[cfg(windows)]
     let builder = builder.additional_browser_args(WEBVIEW2_ARGS);
     builder.build()
@@ -765,6 +785,9 @@ pub fn run() {
             engine::get_player_state,
             show_engine,
             hide_engine,
+            login::chrome_login_available,
+            login::import_chrome_login,
+            login::logout,
             spotify::spotify_playlist,
             charts::chart_fetch,
             desktop::video_window,

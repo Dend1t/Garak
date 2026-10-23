@@ -13,12 +13,14 @@ import { startAlbumTheme } from '../lib/theme';
 import { startLibrarySync, toggleLike, useLiked } from '../state/library';
 import { useTrackLyrics } from '../state/lyrics';
 import { activeLine } from '../lib/lyrics';
-import { formatTime, patchPlayer, playerStore, startPlayerSync, usePlayer, usePosition, usePositionSelect } from '../state/player';
+import { patchPlayer, playerStore, startPlayerSync, usePlayer, usePositionSelect } from '../state/player';
 import { toastError } from '../state/ui';
 import { Toasts } from './ContextMenu';
 import { Cover } from './Cover';
 import { Icon } from './Icon';
 import { TrackItem, useQueue } from './QueuePanel';
+import { TooltipHost } from './Tooltip';
+import { useSeekBar } from './useSeekBar';
 import { playTrack } from '../state/library';
 
 const run = (p: Promise<unknown>, what: string) => p.catch((err) => toastError(err, what));
@@ -87,70 +89,14 @@ async function fitWindow(open: boolean) {
   if (pos.y + size.height > bottom) await win.setPosition(new PhysicalPosition(pos.x, Math.max(top, bottom - size.height)));
 }
 
-/** 진행 막대: 누르거나 끌어서 옮긴다(가리키면 굵어지고 손잡이가 나온다). 키보드는 ←→ 5초, Home·End. */
+/** 진행 막대: 누르거나 끌어서 옮긴다(가리키면 굵어지고 손잡이가 나온다). 동작은 useSeekBar. */
 function MiniSeek() {
-  const duration = usePlayer((s) => s.duration);
-  const ad = usePlayer((s) => s.ad);
-  const has = usePlayer((s) => !!s.videoId);
-  const position = usePosition(10);
-  const [drag, setDrag] = useState<number | null>(null);
-  const bar = useRef<HTMLDivElement>(null);
-  /** 누르고 있는 중(상태가 다시 그려지기 전에 손을 떼도 알 수 있게 ref로) */
-  const pressed = useRef(false);
-  const disabled = !has || ad || duration <= 0;
-  const value = drag ?? position;
-  const ratio = (v: number) => (duration > 0 ? Math.max(0, Math.min(1, v / duration)) : 0);
-  const at = (clientX: number) => {
-    const r = bar.current!.getBoundingClientRect();
-    return Math.max(0, Math.min(1, (clientX - r.left) / r.width)) * duration;
-  };
-  const commit = (v: number) => {
-    setDrag(null);
-    patchPlayer({ position: v });
-    void run(ytm.control('seek', v), t('이동하지 못했습니다'));
-  };
+  const seek = useSeekBar();
   return (
     <div
-      ref={bar}
-      className={`mini-seek${drag !== null ? ' is-dragging' : ''}${disabled ? ' is-disabled' : ''}`}
-      style={{ '--fill': `${ratio(value) * 100}%` } as CSSProperties}
-      role="slider"
-      tabIndex={disabled ? -1 : 0}
-      aria-label={t('재생 위치')}
-      aria-disabled={disabled}
-      aria-valuemin={0}
-      aria-valuemax={Math.round(duration)}
-      aria-valuenow={Math.round(value)}
-      aria-valuetext={`${formatTime(value)} / ${formatTime(duration)}`}
-      onPointerDown={(e) => {
-        if (disabled || e.button !== 0) return;
-        try {
-          e.currentTarget.setPointerCapture(e.pointerId);
-        } catch {
-          // 포인터를 잡지 못해도 누른 자리로는 옮긴다.
-        }
-        pressed.current = true;
-        setDrag(at(e.clientX));
-      }}
-      onPointerMove={(e) => {
-        if (!disabled && pressed.current) setDrag(at(e.clientX));
-      }}
-      onPointerUp={(e) => {
-        if (!pressed.current) return;
-        pressed.current = false;
-        commit(at(e.clientX));
-      }}
-      onPointerCancel={() => {
-        pressed.current = false;
-        setDrag(null);
-      }}
-      onKeyDown={(e) => {
-        if (disabled) return;
-        const to = e.key === 'ArrowLeft' ? position - 5 : e.key === 'ArrowRight' ? position + 5 : e.key === 'Home' ? 0 : e.key === 'End' ? duration - 1 : null;
-        if (to === null) return;
-        e.preventDefault();
-        commit(Math.max(0, Math.min(duration - 1, to)));
-      }}
+      {...seek.props}
+      className={`mini-seek${seek.dragging ? ' is-dragging' : ''}${seek.disabled ? ' is-disabled' : ''}`}
+      style={{ '--fill': `${seek.fill * 100}%` } as CSSProperties}
     >
       <span className="mini-seek__track">
         <span className="mini-seek__fill" />
@@ -241,10 +187,10 @@ function MiniLyricLines() {
   return (
     <div className="mini-app__lyrics" aria-live="off">
       {/* 줄이 바뀌면 key가 바뀌어 살짝 올라오며 나타난다 */}
-      <div key={`n${at}`} className="mini-app__lyric is-now" title={now}>
+      <div key={`n${at}`} className="mini-app__lyric is-now" data-tip={now} data-tip-show="overflow">
         {now || '♪'}
       </div>
-      <div key={`x${at}`} className="mini-app__lyric" title={next}>
+      <div key={`x${at}`} className="mini-app__lyric" data-tip={next} data-tip-show="overflow">
         {next}
       </div>
     </div>
@@ -336,13 +282,13 @@ export function MiniApp() {
             type="button"
             className={`icon-btn mini-app__tool${pinned ? ' is-on' : ''}`}
             aria-label={pinned ? t('늘 위에 두지 않기') : t('늘 위에 두기')}
-            title={pinned ? t('늘 위에 두지 않기') : t('늘 위에 두기')}
+            data-tip-side="bottom"
             aria-pressed={pinned}
             onClick={() => miniPin(!pinned).then(() => setPinned(!pinned), (err) => toastError(err))}
           >
             <Icon name="pin" size={14} />
           </button>
-          <button type="button" className="icon-btn mini-app__tool" aria-label={t('큰 창 열기')} title={t('큰 창 열기')} onClick={() => void invoke('show_main_window').catch((err) => toastError(err))}>
+          <button type="button" className="icon-btn mini-app__tool" aria-label={t('큰 창 열기')} data-tip-side="bottom" onClick={() => void invoke('show_main_window').catch((err) => toastError(err))}>
             <Icon name="external" size={14} />
           </button>
         </div>
@@ -350,8 +296,8 @@ export function MiniApp() {
       <div className="mini-app__body">
         <Cover src={artwork} size={84} className="mini-app__art" />
         <div className="mini-app__side">
-          <div className="mini-app__title" title={title}>{has ? (ad ? t('광고') : title) : t('재생 중인 곡 없음')}</div>
-          <div className="mini-app__artist" title={artist}>{has ? (ad ? 'YouTube Music' : artist) : t('큰 창에서 곡을 고르세요')}</div>
+          <div className="mini-app__title" data-tip={title} data-tip-show="overflow">{has ? (ad ? t('광고') : title) : t('재생 중인 곡 없음')}</div>
+          <div className="mini-app__artist" data-tip={artist} data-tip-show="overflow">{has ? (ad ? 'YouTube Music' : artist) : t('큰 창에서 곡을 고르세요')}</div>
           {has && showLyrics && <MiniLyricLines />}
           <div className="mini-app__controls">
             <button type="button" className={`icon-btn${liked ? ' is-on' : ''}`} aria-label={liked ? t('좋아요 취소') : t('좋아요')} disabled={!has || ad} onClick={() => toggleLike({ videoId, title })}>
@@ -367,10 +313,10 @@ export function MiniApp() {
               <Icon name="next" size={20} />
             </button>
             <span className="mini-app__gap" />
-            <button type="button" className={`icon-btn${showLyrics ? ' is-on' : ''}`} aria-label={t('가사')} title={t('가사')} aria-pressed={showLyrics} onClick={toggleShowLyrics}>
+            <button type="button" className={`icon-btn${showLyrics ? ' is-on' : ''}`} aria-label={t('가사')} aria-pressed={showLyrics} onClick={toggleShowLyrics}>
               <Icon name="lyrics" size={18} />
             </button>
-            <button type="button" className={`icon-btn${queueOpen ? ' is-on' : ''}`} aria-label={t('다음 트랙')} title={t('다음 트랙')} aria-pressed={queueOpen} onClick={toggleQueue}>
+            <button type="button" className={`icon-btn${queueOpen ? ' is-on' : ''}`} aria-label={t('다음 트랙')} aria-pressed={queueOpen} onClick={toggleQueue}>
               <Icon name="queue" size={18} />
             </button>
           </div>
@@ -379,6 +325,7 @@ export function MiniApp() {
       <MiniSeek />
       {queueOpen && <MiniQueue />}
       <Toasts />
+      <TooltipHost />
     </div>
   );
 }

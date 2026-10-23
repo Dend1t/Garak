@@ -192,6 +192,10 @@ input, textarea, .lyrics__plain, .about, .hero__desc { user-select: text; }
   font-weight: 800; font-size: 15px; letter-spacing: -0.01em;
 }
 .logo { flex: none; color: var(--ink); }
+/* 맥: 제목 막대가 없고 신호등 단추가 사이드바 맨 위 줄에 얹힌다(Apple 음악 앱처럼). 그 줄은 위쪽 바와 같은 높이로
+   비워 두고 창을 끄는 자리로 쓴다(data-tauri-drag-region). 로고 자리를 신호등 단추가 차지해 로고는 뺀다. */
+:root[data-platform='mac'] .side__brand { height: 64px; padding: 0; }
+:root[data-platform='mac'] .side__brand > * { display: none; }
 .side__group { display: flex; flex-direction: column; gap: 2px; padding: 8px 0 14px; border-bottom: 1px solid var(--line); }
 .side__nav {
   display: flex; align-items: center; gap: 12px;
@@ -466,7 +470,16 @@ button.top-card:hover { background: var(--plum); }
   z-index: 30;
 }
 .player__now { display: flex; align-items: center; gap: 12px; min-width: 0; }
-.player__art { border-radius: var(--r-sm); flex: none; }
+.player__art { position: relative; border-radius: var(--r-sm); flex: none; }
+/* 가리키면 표지가 어두워지고 ↗(지금 재생 화면 열기)·↙(닫기)가 나온다: 누르면 화면이 바뀐다는 표시(Apple 음악 앱처럼). */
+.player__art-hint {
+  position: absolute; inset: 0; display: grid; place-items: center; border-radius: inherit;
+  background: rgb(0 0 0 / 0.45); color: #fff; opacity: 0; transition: opacity 0.15s;
+}
+.player__art-hint svg { transform: scale(0.8); transition: transform 0.15s; filter: drop-shadow(0 1px 3px rgb(0 0 0 / 0.5)); }
+.player__art:hover .player__art-hint, .player__art:focus-visible .player__art-hint { opacity: 1; }
+.player__art:hover .player__art-hint svg, .player__art:focus-visible .player__art-hint svg { transform: none; }
+@media (prefers-reduced-motion: reduce) { .player__art-hint, .player__art-hint svg { transition: none; } }
 .player__art .cover { box-shadow: 0 4px 14px rgb(0 0 0 / calc(0.4 * var(--shadow-k))); }
 .player__meta { min-width: 0; }
 .player__title { font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -758,10 +771,24 @@ button.player__title { display: block; max-width: 100%; font-size: inherit; }
 
 /* ── 로그인 안내 ───────────────────────────────────────────────────────── */
 .gate { position: fixed; inset: 0 0 var(--player-h) var(--side-w); z-index: 60; display: grid; place-items: center; background: rgb(var(--bg-rgb) / 0.94); }
-.gate__card { max-width: 460px; padding: 32px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 14px; }
+.gate__card { max-width: 460px; padding: 32px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 14px; word-break: keep-all; }
 .gate__title { font-size: 26px; font-weight: 800; letter-spacing: -0.02em; margin: 0; }
 .gate__text { color: var(--mist); margin: 0 0 8px; }
 .gate__actions { display: flex; gap: 8px; }
+.gate__hint { color: var(--mist); font-size: 12px; margin: -4px 0 0; }
+
+/* ── 툴팁(components/Tooltip.tsx). 전체 화면 모드(z-index 1000) 위에도 뜬다. ───────────── */
+.tip {
+  position: fixed; left: 0; top: 0; z-index: 1100; pointer-events: none;
+  display: flex; align-items: center; gap: 8px; max-width: min(320px, calc(100vw - 16px));
+  padding: 6px 10px; border-radius: 8px; background: var(--plum-2); color: var(--ink);
+  font-size: 12px; font-weight: 600; line-height: 1.35; overflow-wrap: anywhere;
+  box-shadow: 0 6px 20px rgb(0 0 0 / calc(0.35 * var(--shadow-k))), 0 0 0 1px var(--line);
+  animation: tip-in 0.12s ease-out;
+}
+.tip__key { flex: none; font: inherit; font-size: 11px; color: var(--mist); padding: 1px 6px; border-radius: 4px; background: rgb(var(--fg-rgb) / 0.08); }
+@keyframes tip-in { from { opacity: 0; translate: 0 3px; } }
+@media (prefers-reduced-motion: reduce) { .tip { animation: none; } }
 
 /* ── 노래·영상 전환, 수면 타이머 ─────────────────────────────────────── */
 .avtoggle { display: inline-flex; gap: 2px; padding: 2px; margin-top: 4px; border-radius: 12px; background: rgb(var(--fg-rgb) / 0.08); }
@@ -812,12 +839,17 @@ button.player__title { display: block; max-width: 100%; font-size: inherit; }
 .moods { margin-bottom: 18px; }
 .moods__title { font-size: 15px; font-weight: 700; color: var(--mist); margin: 0 0 10px; }
 .moods__grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 10px; }
+/* 홈의 인기 차트 카드(.chart-chip)와 같은 모양. YouTube가 주는 곡 분위기 색은 테마와 따로 놀아 쓰지 않는다. */
 .mood {
-  height: 48px; padding: 0 14px; border-radius: var(--r-sm); text-align: left; font-weight: 700;
-  background: rgb(var(--fg-rgb) / 0.06); box-shadow: inset 6px 0 0 var(--mood);
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  height: 52px; padding: 0 12px 0 16px; border-radius: 14px; text-align: left; font-weight: 700;
+  background: var(--dusk); border: 1px solid var(--line);
+  transition: background-color 0.15s, border-color 0.15s;
 }
-.mood:hover { background: rgb(var(--fg-rgb) / 0.11); }
+.mood__label { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mood__go { flex: none; color: var(--faint); transition: color 0.15s, transform 0.15s; }
+.mood:hover { background: var(--plum); border-color: rgb(var(--rose-rgb) / 0.35); }
+.mood:hover .mood__go { color: var(--rose-soft); transform: translateX(2px); }
 
 /* ── 청취 통계 ─────────────────────────────────────────────────────────── */
 .stats__totals { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; margin-bottom: 24px; }
@@ -1078,8 +1110,24 @@ kbd { display: inline-block; min-width: 64px; padding: 2px 8px; margin-right: 8p
 .stage .icon-btn:hover:not(:disabled) { color: #fff; background: rgb(255 255 255 / 0.1); }
 .stage__play { width: 58px; height: 58px; }
 .stage__progress { display: flex; align-items: center; gap: 14px; font-size: 12px; color: rgb(255 255 255 / 0.55); font-variant-numeric: tabular-nums; }
-.stage__bar { flex: 1; height: 2px; border-radius: 1px; background: rgb(255 255 255 / 0.16); overflow: hidden; }
-.stage__bar span { display: block; height: 100%; background: rgb(255 255 255 / 0.78); }
+/* 진행 막대: 누르거나 끌어서 옮긴다. 막대는 2px이라 위아래로 보이지 않는 칸을 덧대 누르기 쉽게 한다(.mini-seek와 같은 방식). */
+.stage__seek { position: relative; flex: 1; height: 2px; cursor: pointer; touch-action: none; outline: none; }
+.stage__seek::before { content: ''; position: absolute; left: 0; right: 0; top: -10px; bottom: -10px; }
+.stage__bar { position: absolute; inset: 0; border-radius: 1px; background: rgb(255 255 255 / 0.16); overflow: hidden; transition: transform 0.15s; }
+.stage__bar span { display: block; width: var(--fill); height: 100%; background: rgb(255 255 255 / 0.78); }
+.stage__knob {
+  position: absolute; top: 50%; left: var(--fill); width: 12px; height: 12px; margin: -6px 0 0 -6px; border-radius: 50%;
+  background: #fff; box-shadow: 0 1px 4px rgb(0 0 0 / 0.45); opacity: 0; transform: scale(0.4); transition: opacity 0.15s, transform 0.15s; pointer-events: none;
+}
+.stage__seek:hover .stage__bar, .stage__seek.is-dragging .stage__bar, .stage__seek:focus-visible .stage__bar { transform: scaleY(2); }
+.stage__seek:hover .stage__knob, .stage__seek.is-dragging .stage__knob, .stage__seek:focus-visible .stage__knob { opacity: 1; transform: scale(1); }
+.stage__seek:focus-visible .stage__bar { box-shadow: 0 0 0 2px rgb(255 255 255 / 0.35); }
+/* 커서가 숨으면(가만둔 지 3초) 마우스가 막대 위에 있어도 다시 얇게. */
+.stage.is-idle .stage__seek:not(.is-dragging) .stage__bar { transform: none; }
+.stage.is-idle .stage__seek:not(.is-dragging) .stage__knob { opacity: 0; }
+.stage__seek.is-disabled { cursor: default; }
+.stage__seek.is-disabled .stage__bar { transform: none; }
+.stage__seek.is-disabled .stage__knob { display: none; }
 .stage__exit { position: absolute; top: 3cqh; right: 3cqw; z-index: 2; transition: opacity 0.4s; }
 .stage.is-idle .stage__controls, .stage.is-idle .stage__exit { opacity: 0; pointer-events: none; }
 /* 세로 모니터: 표지 위, 글자 아래 가운데 */

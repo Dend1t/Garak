@@ -113,20 +113,20 @@ export function setBand(index: number, db: number) {
 
 /**
  * 스펙트럼 시각화를 켜 둔다. 끄는 함수를 돌려준다(몇 초마다 다시 알려야 계속 보낸다).
- * prompt=false(앨범 표지 화면): 맥에서 오디오 캡처 권한을 묻지 않고 허용됐을 때만 움직이며, 실패도 알리지 않는다.
+ * report=false(앨범 표지 화면): 맥에서 오디오 캡처 권한을 아직 정하지 않았으면 묻되, 거부·실패는 알리지 않는다(허용됐을 때만 움직인다).
  * 끌 때도 따로 알리지 않고 몇 초 뒤 알아서 멈추게 둔다(이퀄라이저 패널이 같이 보고 있을 수 있다).
  */
-export function keepVisualizer(prompt = true): () => void {
+export function keepVisualizer(report = true): () => void {
   const ping = () =>
-    invoke('eq_visualizer', { on: true, prompt }).catch((err) => {
+    invoke('eq_visualizer', { on: true, report }).catch((err) => {
       console.warn('[eq] 시각화 실패', err);
-      if (prompt) eqStatusStore.set({ ...eqStatusStore.get(), failed: 'visualizer' });
+      if (report) eqStatusStore.set({ ...eqStatusStore.get(), failed: 'visualizer' });
     });
   void ping();
   const timer = window.setInterval(ping, 4000);
   return () => {
     window.clearInterval(timer);
-    if (prompt) invoke('eq_visualizer', { on: false }).catch(() => undefined);
+    if (report) invoke('eq_visualizer', { on: false }).catch(() => undefined);
   };
 }
 

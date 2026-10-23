@@ -85,7 +85,7 @@ const Row = memo(function Row({ track, position, numbered, showCover, showAlbum,
       onContextMenu={menu}
       {...dragProps}
     >
-      {drag && <span className="track__grip" aria-hidden="true" title={t('끌어서 순서 바꾸기')}><Icon name="grip" size={14} /></span>}
+      {drag && <span className="track__grip" aria-hidden="true" data-tip={t('끌어서 순서 바꾸기')}><Icon name="grip" size={14} /></span>}
       <div className="track__lead" role="cell">
         {showCover && <Cover src={track.thumbnail} size={40} />}
         {lead !== null && !showCover && <span className="track__num">{isPlaying ? <Bars /> : lead}</span>}
@@ -95,7 +95,7 @@ const Row = memo(function Row({ track, position, numbered, showCover, showAlbum,
         {showCover && isPlaying && <span className="track__cover-bars"><Bars /></span>}
       </div>
       <div className="track__main" role="cell">
-        <span className="track__title" title={track.title}>
+        <span className="track__title" data-tip={track.title} data-tip-show="overflow">
           {track.title}
           {track.isVideo && <span className="track__badge">{t('영상')}</span>}
         </span>

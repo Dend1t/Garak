@@ -122,9 +122,9 @@ function CardItem({ card }: { card: Card }) {
   };
   const round = card.kind === 'artist' || card.kind === 'profile';
   return (
-    <button type="button" className="pcard" onClick={open} onContextMenu={menu} title={card.title}>
+    <button type="button" className="pcard" onClick={open} onContextMenu={menu}>
       <Cover src={card.thumbnail} size="100%" round={round} />
-      <span className="pcard__title">{card.title}</span>
+      <span className="pcard__title" data-tip={card.title} data-tip-show="overflow">{card.title}</span>
       <span className="pcard__sub">{card.subtitle}</span>
     </button>
   );

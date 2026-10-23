@@ -31,9 +31,16 @@ ureq = "3"
 [target.'cfg(target_os = "macos")'.dependencies]
 # 맥 EQ: Core Audio 프로세스 탭(mac_tap.rs)
 objc2 = "0.6"
-objc2-foundation = { version = "0.3", features = ["NSArray", "NSString", "NSValue", "NSUUID", "NSDictionary"] }
+objc2-foundation = { version = "0.3", features = ["NSArray", "NSString", "NSValue", "NSUUID", "NSDictionary", "NSDate", "NSEnumerator", "NSHTTPCookie"] }
+# 크롬 로그인 가져오기·로그아웃(login.rs): 엔진 웹뷰 쿠키 저장소. wry가 이미 쓰는 크레이트·기능이다.
+objc2-web-kit = { version = "0.3", default-features = false, features = ["std", "objc2-app-kit", "block2", "WKWebView", "WKWebViewConfiguration", "WKWebsiteDataStore", "WKHTTPCookieStore"] }
 rustfft = "6"
 block2 = "0.6"
+
+[target.'cfg(windows)'.dependencies]
+# 로그아웃(login.rs): 엔진 WebView2 쿠키 관리자. wry가 이미 쓰는 크레이트다.
+webview2-com = "0.39"
+windows-core = "0.62"
 
 [profile.release]
 codegen-units = 1

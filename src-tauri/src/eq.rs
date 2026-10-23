@@ -149,18 +149,19 @@ pub async fn eq_set(app: AppHandle, settings: EqSettings) -> Result<serde_json::
 }
 
 /// 화면이 스펙트럼을 보는 동안 몇 초마다 부른다(안 부르면 알아서 멈춘다).
-/// prompt: 맥에서 오디오 캡처 권한을 물어도 되는지(없으면 예). 앨범 표지 화면은 false로 부른다.
+/// report: 맥에서 오디오 캡처 권한 거부·실패를 화면에 알려도 되는지(없으면 예). 앨범 표지 화면은 false로 부른다.
+/// 권한을 아직 정하지 않았으면 어느 쪽이든 묻는다.
 #[tauri::command]
-pub async fn eq_visualizer(app: AppHandle, on: bool, prompt: Option<bool>) -> Result<serde_json::Value, String> {
+pub async fn eq_visualizer(app: AppHandle, on: bool, report: Option<bool>) -> Result<serde_json::Value, String> {
     #[cfg(target_os = "macos")]
     {
         let _ = &app;
-        crate::mac_tap::set_visualizer(on, prompt.unwrap_or(true));
+        crate::mac_tap::set_visualizer(on, report.unwrap_or(true));
         Ok(crate::mac_tap::status_json())
     }
     #[cfg(not(target_os = "macos"))]
     {
-        let _ = prompt;
+        let _ = report;
         crate::engine::call(&app, "eqStream", serde_json::json!({ "on": on })).await
     }
 }

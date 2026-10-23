@@ -6,6 +6,7 @@ import './styles.css';
 import { App } from './App';
 import { MiniApp } from './components/MiniApp';
 import { getLang } from './i18n';
+import { IS_MAC } from './lib/keys';
 import { initTheme } from './lib/theme';
 
 // 화면 오류·경고를 터미널 기록(ui_log)으로도 넘긴다. 넘기기 실패는 무시(원래 콘솔에는 남는다).
@@ -29,6 +30,8 @@ window.addEventListener('unhandledrejection', (e) => forward('error', ['처리 �
 initTheme();
 // 문서 언어(index.html은 ko)를 고른 언어로 맞춘다. 글꼴 고르기·화면 낭독기가 이 값을 쓴다. 바꿀 때는 i18n이 맞춘다.
 document.documentElement.lang = getLang();
+// 맥은 제목 막대 없이 신호등 단추가 화면 위에 얹혀서(lib.rs build_main_window) 그 자리를 비우는 스타일이 이 값을 본다.
+document.documentElement.dataset.platform = IS_MAC ? 'mac' : 'other';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

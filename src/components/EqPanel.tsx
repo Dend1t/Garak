@@ -146,7 +146,7 @@ function Slider({ index }: { index: number }) {
   const enabled = useEq((s) => s.enabled);
   const style = { '--pos': `${((value + MAX_DB) / (2 * MAX_DB)) * 100}%` } as CSSProperties;
   return (
-    <label className="band" title={`${BANDS[index]}Hz`}>
+    <label className="band" data-tip={`${BANDS[index]}Hz`}>
       <span className="band__value">{value > 0 ? `+${value}` : value}</span>
       <input
         type="range"

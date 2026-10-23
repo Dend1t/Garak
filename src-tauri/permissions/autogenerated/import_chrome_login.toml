@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-import-chrome-login"
+description = "Enables the import_chrome_login command without any pre-configured scope."
+commands.allow = ["import_chrome_login"]
+
+[[permission]]
+identifier = "deny-import-chrome-login"
+description = "Denies the import_chrome_login command without any pre-configured scope."
+commands.deny = ["import_chrome_login"]

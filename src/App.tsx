@@ -12,6 +12,7 @@ import { patchPlayer, playerStore, startPlayerSync } from './state/player';
 import { stepLyricScale, toast, toastError, togglePanel, toggleLyrics, useLayout } from './state/ui';
 import { ContextMenuHost, Toasts } from './components/ContextMenu';
 import { DialogHost } from './components/Dialogs';
+import { TooltipHost } from './components/Tooltip';
 import { LoginGate } from './components/LoginGate';
 import { LyricsView } from './components/LyricsView';
 import { PlayerBar } from './components/PlayerBar';
@@ -214,6 +215,7 @@ export function App() {
         <ContextMenuHost />
         <DialogHost />
         <Toasts />
+        <TooltipHost />
         {UPDATE_CHECK_ENABLED && <UpdateBanner />}
       </div>
     </LangKeyed>

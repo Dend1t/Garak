@@ -39,11 +39,11 @@ Both apps share the same code for parsing YouTube Music responses, matching char
   - Desktop: a video window (rounded video on a dark backdrop with an ambient glow in the video's colors, optional always-on-top).
   - iOS: the cover and the video cross-fade in the same spot on the now-playing screen, and the background follows the video's colors. Landscape full screen (button or rotate the phone) and Picture in Picture.
   - Black bars baked into cinema-ratio music videos are detected and cropped.
-- **Lyrics**: YouTube Music's own lyrics for the song are the reference. Time-synced lyrics (LRCLIB and Bugs synced lyrics; Bugs first for Korean songs) are used only when their text matches YouTube's, so another song's lyrics (or a different-language version) never show up; they highlight the current line, and clicking a line seeks to it. Otherwise YouTube Music's lyrics are shown as-is (no timing), and when YouTube has none the synced lyrics are the fallback. Text size 70–175% (A−/A+ or ⌘= ⌘- ⌘0), per-song sync adjustment in 0.5 s steps (remembered). On desktop you can choose to show the lyrics or the album art large; under the large album art a live spectrum (bass on the left, vocals in the middle, treble on the right — the same bars as the equalizer panel) moves with the music in the album's colors (on macOS only once audio capture is allowed — the cover view never asks for it). **Full screen mode** (the corners button in the lyrics view) is made for leaving on a monitor: a large cover, album, title, artist, three lyric lines and the spectrum over a blurred cover background; the cursor and controls hide after 3 seconds, Esc exits, and on macOS the display stays awake while it is open. iOS can translate lyrics with the system translator.
+- **Lyrics**: YouTube Music's own lyrics for the song are the reference. Time-synced lyrics (LRCLIB and Bugs synced lyrics; Bugs first for Korean songs) are used only when their text matches YouTube's, so another song's lyrics (or a different-language version) never show up; they highlight the current line, and clicking a line seeks to it. Otherwise YouTube Music's lyrics are shown as-is (no timing), and when YouTube has none the synced lyrics are the fallback. Text size 70–175% (A−/A+ or ⌘= ⌘- ⌘0), per-song sync adjustment in 0.5 s steps (remembered). On desktop you can choose to show the lyrics or the album art large; under the large album art a live spectrum (bass on the left, vocals in the middle, treble on the right — the same bars as the equalizer panel) moves with the music in the album's colors (on macOS once audio capture is allowed — asked the first time the spectrum shows while music plays, and never again if you decline). **Full screen mode** (the corners button in the lyrics view) is made for leaving on a monitor: a large cover, album, title, artist, three lyric lines and the spectrum over a blurred cover background; the cursor and controls hide after 3 seconds, Esc exits, and on macOS the display stays awake while it is open. iOS can translate lyrics with the system translator.
 - **Listening stats**: from songs played on this device for over 30 seconds (or over half of a short song): listening time, a daily bar chart, and top songs and artists (7 days · 30 days · 1 year · all time).
 - **Languages**: Korean, English, Japanese, Simplified Chinese, Traditional Chinese, Spanish, Portuguese (Brazil), French, German, and Indonesian — chosen in Settings (or follow the system), applied right away including the macOS menus and tray. Song and shelf names from YouTube Music follow your account language.
 - **Update notice** (desktop): on launch the app checks the latest GitHub release and offers to open the download page when a newer version is out ("Later" hides it until the next version).
-- **Themes**: System, Dark (default), Light, Midnight, Forest, Sunset, Mono, Sakura, and Album colors (Settings ⌘, or the macOS View → Theme menu). The window title bar follows the theme.
+- **Themes**: System, Dark (default), Light, Midnight, Forest, Sunset, Mono, Sakura, and Album colors (Settings ⌘, or the macOS View → Theme menu). On macOS the window has no separate title bar — the window buttons sit on the sidebar, like Apple Music; on Windows the title bar follows the theme.
 - **Small windows**: down to 720×560.
   - When the center area gets narrow, the cover moves above the title and track-list columns shrink.
   - In a narrow window the sidebar shows icons only, and the queue and EQ panels float over the content.
@@ -101,13 +101,13 @@ Download from [GitHub Releases](https://github.com/hanseihee/ytm/releases).
 - Verify downloads with `SHA256SUMS.txt`.
 
 The apps are not signed with a paid developer certificate (macOS: ad-hoc signed, not notarized).
-- **macOS**: open the DMG and drag **Garak** onto the **Applications** folder next to it (not the disk icon). The first time you open it, macOS says it "could not verify" the app — click **Done**, then go to System Settings → Privacy & Security, scroll down to Security and click **Open Anyway** next to "Garak was blocked", and confirm. You only do this once per version. (Terminal alternative: `xattr -dr com.apple.quarantine /Applications/Garak.app`)
+- **macOS**: signed with an Apple Developer ID and notarized by Apple. Open the DMG and drag **Garak** onto the **Applications** folder next to it (not the disk icon); it opens without warnings. (Releases up to 0.2.13 were not notarized: if macOS says it "could not verify" one of those, click **Done**, then System Settings → Privacy & Security → **Open Anyway** next to "Garak was blocked".)
 - **Windows**: if SmartScreen warns you, choose "More info → Run anyway".
 
-On first launch you'll see a "Sign in with your Google account" screen.
+On first launch you'll see a sign-in screen. On macOS, if Chrome is signed in to YouTube, **Use Chrome sign-in** reuses that account (macOS asks once for Keychain access to "Chrome Safe Storage"); otherwise sign in with Google. **Sign out** in Settings signs out of this app only — Chrome and other browsers stay signed in.
 
 **macOS equalizer permission**
-- The first time you turn it on, macOS asks for "System Audio Recording" permission. The app only processes the sound it plays itself; nothing is recorded or saved.
+- The first time you turn it on, or the first time the spectrum under the large album art shows while music plays, macOS asks for "System Audio Recording" permission. The app only processes the sound it plays itself; nothing is recorded or saved.
 - If you deny it, the app detects that and returns to normal audio. You can allow it later in System Settings → Privacy & Security → Screen & System Audio Recording.
 
 ### Project layout
@@ -265,11 +265,11 @@ YouTube Music 응답 해석, 차트 짝짓기, 가사 찾기, 재생 엔진 스�
   - 데스크톱: 영상 창(어두운 바탕 위 둥근 영상 + 영상 색이 번지는 앰비언트 빛, 늘 위 설정).
   - iOS: 지금 재생 화면의 표지 자리에서 표지와 영상을 겹쳐 바꾸고, 배경색이 영상 색을 따라갑니다. 가로 전체 화면(단추 또는 폰을 눕히기)과 화면 속 화면이 됩니다.
   - 영상 안에 박힌 위아래 검은 띠(시네마 비율 뮤직비디오)는 감지해 잘라 냅니다.
-- **가사**: 그 곡에 붙은 YouTube Music 가사가 기준입니다. 시간 맞춤 가사(LRCLIB·벅스 싱크 가사, 한글 곡은 벅스 먼저)는 YouTube 가사와 같은 노래로 확인될 때만 써서 다른 곡(또는 다른 언어 버전) 가사가 나오지 않게 하고, 지금 줄을 크게 보여 주며 줄을 누르면 그 위치로 갑니다. 확인되지 않으면 YouTube Music 가사(시간 정보 없음)를 그대로 보여 주고, YouTube에 가사가 없을 때만 시간 맞춤 가사를 폴백으로 씁니다. 데스크톱은 가사 화면에서 가사와 앨범 표지 중 크게 볼 것을 고를 수 있고, 큰 앨범 표지 아래에는 음악에 맞춰 움직이는 스펙트럼(왼쪽 저음·가운데 보컬·오른쪽 고음, 이퀄라이저 패널과 같은 막대)이 앨범 색으로 나옵니다(맥은 오디오 캡처를 허용했을 때만, 이 화면은 권한을 묻지 않음). **전체 화면 모드**(가사 화면 위 네 모서리 단추)는 모니터에 틀어 두는 화면입니다. 흐린 표지 배경 위에 큰 표지·앨범·제목·가수·가사 세 줄·스펙트럼이 나오고, 3초 동안 가만두면 커서와 조작 단추가 사라지며, Esc로 나갑니다. 맥은 이 모드 동안 화면이 꺼지지 않습니다. 글자 크기는 70~175%로 바꿀 수 있고(가사 화면의 가−/가+, ⌘= ⌘- ⌘0), 곡마다 싱크를 0.5초씩 맞출 수 있습니다(기억함). iOS는 가사 번역(시스템 번역)도 됩니다.
+- **가사**: 그 곡에 붙은 YouTube Music 가사가 기준입니다. 시간 맞춤 가사(LRCLIB·벅스 싱크 가사, 한글 곡은 벅스 먼저)는 YouTube 가사와 같은 노래로 확인될 때만 써서 다른 곡(또는 다른 언어 버전) 가사가 나오지 않게 하고, 지금 줄을 크게 보여 주며 줄을 누르면 그 위치로 갑니다. 확인되지 않으면 YouTube Music 가사(시간 정보 없음)를 그대로 보여 주고, YouTube에 가사가 없을 때만 시간 맞춤 가사를 폴백으로 씁니다. 데스크톱은 가사 화면에서 가사와 앨범 표지 중 크게 볼 것을 고를 수 있고, 큰 앨범 표지 아래에는 음악에 맞춰 움직이는 스펙트럼(왼쪽 저음·가운데 보컬·오른쪽 고음, 이퀄라이저 패널과 같은 막대)이 앨범 색으로 나옵니다(맥은 오디오 캡처를 허용했을 때만 — 음악이 나오는 중에 스펙트럼이 처음 보일 때 묻고, 거부하면 다시 묻지 않음). **전체 화면 모드**(가사 화면 위 네 모서리 단추)는 모니터에 틀어 두는 화면입니다. 흐린 표지 배경 위에 큰 표지·앨범·제목·가수·가사 세 줄·스펙트럼이 나오고, 3초 동안 가만두면 커서와 조작 단추가 사라지며, Esc로 나갑니다. 맥은 이 모드 동안 화면이 꺼지지 않습니다. 글자 크기는 70~175%로 바꿀 수 있고(가사 화면의 가−/가+, ⌘= ⌘- ⌘0), 곡마다 싱크를 0.5초씩 맞출 수 있습니다(기억함). iOS는 가사 번역(시스템 번역)도 됩니다.
 - **청취 통계**: 이 기기에서 30초 넘게(짧은 곡은 절반 넘게) 들은 곡으로 들은 시간, 날짜별 막대, 많이 들은 곡·아티스트를 보여 줍니다(7일·30일·1년·전체).
 - **언어**: 한국어, English, 日本語, 简体中文, 繁體中文, Español, Português (Brasil), Français, Deutsch, Bahasa Indonesia. 설정에서 고르면(또는 시스템 언어를 따르면) 맥 메뉴·트레이까지 바로 바뀝니다. YouTube Music에서 받아 오는 곡·묶음 이름은 계정 언어를 따릅니다.
 - **업데이트 알림**(데스크톱): 앱을 열 때 GitHub 최신 릴리즈를 확인해, 새 버전이 있으면 내려받기 페이지를 열어 줍니다("나중에"를 누르면 다음 버전까지 다시 알리지 않습니다).
-- **테마**: 시스템 설정, 다크(기본), 라이트, 미드나잇, 숲, 노을, 모노, 벚꽃, 앨범 색 중에서 고릅니다(설정 ⌘, 또는 맥 메뉴 보기 → 테마). 창 제목 막대 밝기도 함께 바뀝니다.
+- **테마**: 시스템 설정, 다크(기본), 라이트, 미드나잇, 숲, 노을, 모노, 벚꽃, 앨범 색 중에서 고릅니다(설정 ⌘, 또는 맥 메뉴 보기 → 테마). 맥은 Apple 음악 앱처럼 따로 된 제목 막대 없이 창 단추가 사이드바 위에 얹히고, 윈도우는 제목 막대 밝기가 테마를 따릅니다.
 - **작은 창**: 최소 720×560까지 줄일 수 있습니다.
   - 가운데 영역이 좁아지면 표지가 제목 위로 가고, 곡 목록의 칸을 줄입니다.
   - 창이 좁으면 사이드바는 아이콘만 남기고, 대기열·EQ 패널은 화면 위에 떠서 열립니다.
@@ -328,14 +328,13 @@ open ios/YTM.xcodeproj     # Xcode에서 아이폰을 골라 실행(자동 서�
 - 윈도우(64비트): `Garak-<버전>-windows-x64-setup.exe`
 - `SHA256SUMS.txt`로 받은 파일을 확인할 수 있습니다.
 
-유료 개발자 인증서로 서명하지 않았습니다(맥은 임시 서명, 공증 없음).
-- **맥**: DMG를 열고 **Garak**을 옆의 **Applications** 폴더로 끌어 놓으세요(디스크 아이콘이 아니라 앱을). 처음 열 때 "확인할 수 없습니다" 경고가 뜨면 **완료**를 누르고, 시스템 설정 → 개인정보 보호 및 보안 → 아래쪽 보안 칸의 "Garak이(가) 차단되었습니다" 옆 **그래도 열기**를 누른 뒤 확인하세요. 버전마다 한 번만 하면 됩니다. (터미널로 하려면 `xattr -dr com.apple.quarantine /Applications/Garak.app`)
+- **맥**: Apple Developer ID로 서명하고 Apple 공증을 받았습니다. DMG를 열고 **Garak**을 옆의 **Applications** 폴더로 끌어 놓으면(디스크 아이콘이 아니라 앱을) 경고 없이 열립니다. (0.2.13까지는 공증이 없어서, "확인할 수 없습니다" 경고가 뜨면 **완료**를 누르고 시스템 설정 → 개인정보 보호 및 보안 → "Garak이(가) 차단되었습니다" 옆 **그래도 열기**를 누르세요.)
 - **윈도우**: SmartScreen 경고가 뜨면 "추가 정보 → 실행"을 고르세요.
 
-처음 실행하면 "Google 계정으로 로그인" 화면이 나옵니다.
+처음 실행하면 로그인 화면이 나옵니다. 맥에서 크롬에 YouTube가 로그인돼 있으면 **크롬 로그인 가져오기**로 그 계정을 그대로 쓸 수 있고(처음 한 번 키체인의 "Chrome Safe Storage" 접근을 묻습니다), 아니면 Google 계정으로 로그인하세요. 설정의 **로그아웃**은 이 앱에서만 로그아웃하며 크롬 등 다른 브라우저의 로그인은 그대로입니다.
 
 **맥 이퀄라이저 권한**
-- 처음 켤 때 macOS가 "시스템 오디오 녹음" 권한을 묻습니다. 이 앱이 내는 소리만 받아 처리하며, 녹음하거나 저장하지 않습니다.
+- 이퀄라이저를 처음 켜거나, 음악이 나오는 중에 큰 앨범 표지 아래 스펙트럼이 처음 보일 때 macOS가 "시스템 오디오 녹음" 권한을 묻습니다. 이 앱이 내는 소리만 받아 처리하며, 녹음하거나 저장하지 않습니다.
 - 거부하면 앱이 감지해 원래 소리로 되돌립니다. 그 뒤에는 시스템 설정 → 개인정보 보호 및 보안 → 화면 및 시스템 오디오 녹음에서 허용할 수 있습니다.
 
 ### 구조

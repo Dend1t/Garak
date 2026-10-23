@@ -49,6 +49,10 @@ export function describeError(err: unknown): string {
   if (message.startsWith('engine_timeout')) return t('YouTube Music이 응답하지 않습니다. 인터넷 연결을 확인하세요.');
   if (message.startsWith('engine_navigating')) return t('YouTube Music 페이지를 다시 불러오는 중이었습니다. 다시 시도하세요.');
   if (message.startsWith('not_on_music')) return t('YouTube Music에 로그인해야 합니다.');
+  if (message === 'chrome_missing') return t('크롬을 찾지 못했습니다.');
+  if (message === 'chrome_signed_out') return t('크롬에 로그인된 YouTube 계정이 없습니다. 크롬에서 YouTube에 로그인한 뒤 다시 시도하세요.');
+  if (message === 'keychain_denied') return t('키체인 접근을 허용해야 가져올 수 있습니다.');
+  if (message === 'keychain_missing' || message === 'chrome_decrypt_failed') return t('크롬 로그인 정보를 읽지 못했습니다.');
   if (/^http_401|^http_403/.test(message)) return t('로그인이 만료됐습니다. 다시 로그인하세요.');
   if (/^http_4\d\d/.test(message)) return t('YouTube Music이 요청을 거절했습니다 ({code}).', { code: message.slice(5, 8) });
   if (/^http_5\d\d/.test(message)) return t('YouTube Music 서버 오류입니다. 잠시 뒤 다시 시도하세요.');
@@ -63,6 +67,12 @@ export const getEngineStatus = () => invoke<EngineStatus>('get_engine_status');
 export const getPlayerState = () => invoke<PlayerState | null>('get_player_state');
 export const showEngine = (mode: 'login' | 'web' | 'reload') => invoke<void>('show_engine', { mode });
 export const hideEngine = () => invoke<void>('hide_engine');
+/** 크롬 쿠키 저장소가 있는지(맥만 true). 키체인은 묻지 않는다. */
+export const chromeLoginAvailable = () => invoke<boolean>('chrome_login_available');
+/** 크롬의 YouTube 로그인을 엔진 창에 넣고 YouTube Music을 다시 연다(처음에는 맥이 키체인 접근을 묻는다). */
+export const importChromeLogin = () => invoke<{ profile: string; cookies: number }>('import_chrome_login');
+/** 이 앱에서만 로그아웃(엔진의 YouTube·Google 쿠키를 지운다). 다른 브라우저의 로그인은 그대로다. */
+export const logout = () => invoke<void>('logout');
 
 export const onEngineStatus = (fn: (s: EngineStatus) => void): Promise<UnlistenFn> =>
   listen<EngineStatus>('engine-status', (e) => fn(e.payload));

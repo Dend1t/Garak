@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
 import { t } from '../i18n';
 import * as ytm from '../lib/ytm/client';
+import { modKey } from '../lib/keys';
 import { parseLink, type LinkTarget } from '../lib/ytm/links';
 import type { Suggestions } from '../lib/ytm/types';
 import { playEndpoint, playTrack } from '../state/library';
@@ -211,12 +212,13 @@ function SearchBox() {
 export function TopBar() {
   const can = useCanGo();
   return (
-    <div className="topbar" data-tauri-drag-region>
+    // 맥은 제목 막대가 없어 이 줄로 창을 끈다. 단추·검색칸 말고 어디를 눌러도 끌리게 deep(Tauri가 누를 수 있는 요소는 뺀다).
+    <div className="topbar" data-tauri-drag-region="deep">
       <div className="topbar__nav">
-        <button type="button" className="icon-btn icon-btn--round" aria-label={t('뒤로')} disabled={!(can & 1)} onClick={back}>
+        <button type="button" className="icon-btn icon-btn--round" aria-label={t('뒤로')} data-tip-key={modKey('[')} data-tip-side="bottom" disabled={!(can & 1)} onClick={back}>
           <Icon name="back" size={18} />
         </button>
-        <button type="button" className="icon-btn icon-btn--round" aria-label={t('앞으로')} disabled={!(can & 2)} onClick={forward}>
+        <button type="button" className="icon-btn icon-btn--round" aria-label={t('앞으로')} data-tip-key={modKey(']')} data-tip-side="bottom" disabled={!(can & 2)} onClick={forward}>
           <Icon name="forward" size={18} />
         </button>
       </div>

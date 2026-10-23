@@ -78,7 +78,7 @@ export function StatsView() {
           </div>
           <div className="stats__bars" role="img" aria-label={t('날짜별 들은 시간')}>
             {s.days.map((d) => (
-              <div key={d.label} className="stats__bar" title={`${d.label} ${formatListen(d.seconds)}`}>
+              <div key={d.label} className="stats__bar" data-tip={`${d.label} ${formatListen(d.seconds)}`}>
                 <span style={{ height: `${Math.max(2, (d.seconds / max) * 100)}%` }} />
                 <small>{s.days.length <= 7 || d.label.endsWith('/1') || d.label.endsWith('/15') ? d.label : ''}</small>
               </div>
@@ -91,7 +91,7 @@ export function StatsView() {
                 {s.topTracks.map((tr, i) => (
                   <li key={tr.id}>
                     <span className="stats__rank">{i + 1}</span>
-                    <button type="button" className="stats__track" onClick={() => mix(tr.id)} title={t('이 곡으로 믹스 재생')}>
+                    <button type="button" className="stats__track" onClick={() => mix(tr.id)} data-tip={t('이 곡으로 믹스 재생')}>
                       <Cover src={tr.artwork} size={40} />
                       <span className="stats__meta"><b>{tr.title}</b><small>{tr.artist}</small></span>
                     </button>

@@ -108,7 +108,7 @@ function Row({ rank, title, artists, durationMs, match, onPlay, onRetry }: {
         </button>
       </div>
       <div className="track__main" role="cell">
-        <span className="track__title" title={title}>{title}</span>
+        <span className="track__title" data-tip={title} data-tip-show="overflow">{title}</span>
         <span className="track__artists">{artists}</span>
       </div>
       <div className="chart-row__match" role="cell">
@@ -120,7 +120,7 @@ function Row({ rank, title, artists, durationMs, match, onPlay, onRetry }: {
             <button type="button" className="link" onClick={onRetry}>{t('직접 검색')}</button>
           </span>
         ) : match.quality === 'unsure' ? (
-          <span className="match match--unsure" title={`${track.title} — ${track.artists.map((a) => a.name).join(', ')}`}>
+          <span className="match match--unsure" data-tip={`${track.title} — ${track.artists.map((a) => a.name).join(', ')}`}>
             {t('비슷한 곡: {title}', { title: track.title })}
           </span>
         ) : track.isVideo ? (
@@ -272,7 +272,7 @@ export function SpotifyView({ id }: { id: string }) {
               <Icon name="bookmark" size={17} filled={!!synced} />
               {busy === 'save' ? t('저장하는 중…') : saved ? (synced ? t('내 재생목록과 같음') : t('내 재생목록 업데이트')) : t('내 YouTube Music에 저장')}
             </button>
-            <button type="button" className="icon-btn icon-btn--round" aria-label={t('다시 찾기')} title={t('YouTube Music에서 다시 찾기')} onClick={reMatch} disabled={!finished}>
+            <button type="button" className="icon-btn icon-btn--round" aria-label={t('다시 찾기')} data-tip={t('YouTube Music에서 다시 찾기')} onClick={reMatch} disabled={!finished}>
               <Icon name="search" size={18} />
             </button>
           </div>

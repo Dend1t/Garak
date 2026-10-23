@@ -5,6 +5,7 @@ import * as ytm from '../lib/ytm/client';
 import { useTrackLyrics } from '../state/lyrics';
 import { patchPlayer, usePlayer, usePositionSelect } from '../state/player';
 import { LYRIC_SCALES, setLyricsView, stepLyricScale, toastError, toggleLyrics, useLyricScale, useLyricsView } from '../state/ui';
+import { modKey } from '../lib/keys';
 import { useSoftArt } from '../lib/softArt';
 import { Cover, largeArt } from './Cover';
 import { CoverSpectrum } from './CoverSpectrum';
@@ -85,7 +86,7 @@ function CoverStage({ lyrics, offset, artwork, title, artist }: { lyrics?: Lyric
           {artist && <div className="lyrics__cover-artist">{artist}</div>}
         </div>
         {now && (
-          <button type="button" className="lyrics__preview" title={t('가사 보기')} onClick={() => setLyricsView('lyrics')}>
+          <button type="button" className="lyrics__preview" data-tip={t('가사 보기')} onClick={() => setLyricsView('lyrics')}>
             <span className="lyrics__preview-now">{now}</span>
             {next && <span className="lyrics__preview-next">{next}</span>}
           </button>
@@ -119,7 +120,8 @@ export function LyricsView() {
   return (
     <section className="lyrics" style={bg} aria-label={view === 'cover' ? t('지금 재생') : t('가사')}>
       <div className={`lyrics__backdrop${soft ? ' is-soft' : ''}`} aria-hidden="true" />
-      <header className="lyrics__head">
+      {/* 가사 화면이 위쪽 바를 덮으므로 여기로도 창을 끈다(단추는 빼고) */}
+      <header className="lyrics__head" data-tauri-drag-region="deep">
         {view === 'lyrics' ? (
           <div className="lyrics__track">
             {videoId && <Cover src={artwork || undefined} size={48} className="lyrics__thumb" />}
@@ -146,20 +148,20 @@ export function LyricsView() {
                 type="button"
                 className="textsize__btn"
                 aria-label={t('가사 글자 작게')}
-                title={t('작게 (⌘-)')}
+                data-tip-key={modKey('-')}
                 disabled={scale <= LYRIC_SCALES[0]}
                 onClick={() => stepLyricScale(-1)}
               >
                 <span className="textsize__glyph textsize__glyph--sm" aria-hidden="true">{t('가')}</span>
               </button>
-              <button type="button" className="textsize__value" title={t('기본 크기로 (⌘0)')} onClick={() => stepLyricScale(0)}>
+              <button type="button" className="textsize__value" data-tip={t('기본 크기로')} data-tip-key={modKey('0')} onClick={() => stepLyricScale(0)}>
                 {Math.round(scale * 100)}%
               </button>
               <button
                 type="button"
                 className="textsize__btn"
                 aria-label={t('가사 글자 크게')}
-                title={t('크게 (⌘=)')}
+                data-tip-key={modKey('=')}
                 disabled={scale >= LYRIC_SCALES[LYRIC_SCALES.length - 1]}
                 onClick={() => stepLyricScale(1)}
               >
@@ -169,20 +171,20 @@ export function LyricsView() {
           )}
           {view === 'lyrics' && state.lyrics?.synced && (
             <div className="textsize lyric-sync" role="group" aria-label={t('가사 싱크')}>
-              <button type="button" className="textsize__btn" aria-label={t('가사를 0.5초 늦게')} title={t('가사가 빠를 때')} disabled={offset <= -LYRIC_OFFSET_MAX} onClick={() => nudge(-LYRIC_OFFSET_STEP)}>
+              <button type="button" className="textsize__btn" aria-label={t('가사를 0.5초 늦게')} data-tip={t('가사가 빠를 때')} disabled={offset <= -LYRIC_OFFSET_MAX} onClick={() => nudge(-LYRIC_OFFSET_STEP)}>
                 <Icon name="back" size={14} />
               </button>
-              <button type="button" className="textsize__value" title={t('싱크 원래대로')} onClick={() => nudge(0)}>
+              <button type="button" className="textsize__value" data-tip={t('싱크 원래대로')} onClick={() => nudge(0)}>
                 {offset === 0
                   ? t('싱크')
                   : t('{n}초', { n: `${offset > 0 ? '+' : ''}${offset.toLocaleString(locale(), { minimumFractionDigits: 1, maximumFractionDigits: 1 })}` })}
               </button>
-              <button type="button" className="textsize__btn" aria-label={t('가사를 0.5초 빠르게')} title={t('가사가 늦을 때')} disabled={offset >= LYRIC_OFFSET_MAX} onClick={() => nudge(LYRIC_OFFSET_STEP)}>
+              <button type="button" className="textsize__btn" aria-label={t('가사를 0.5초 빠르게')} data-tip={t('가사가 늦을 때')} disabled={offset >= LYRIC_OFFSET_MAX} onClick={() => nudge(LYRIC_OFFSET_STEP)}>
                 <Icon name="forward" size={14} />
               </button>
             </div>
           )}
-          <button type="button" className="icon-btn" aria-label={t('전체 화면')} title={t('전체 화면')} onClick={() => setStage(true)}>
+          <button type="button" className="icon-btn" aria-label={t('전체 화면')} onClick={() => setStage(true)}>
             <Icon name="expand" size={18} />
           </button>
           <button type="button" className="icon-btn" aria-label={t('가사 닫기')} onClick={() => toggleLyrics(false)}>
