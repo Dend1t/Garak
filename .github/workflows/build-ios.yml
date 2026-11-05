@@ -1,0 +1,56 @@
+
+name: Build Garak iOS
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Generate iOS project
+        run: npm run ios:project
+
+      - name: Build iOS app
+        run: |
+          xcodebuild \
+            -project ios/YTM.xcodeproj \
+            -scheme YTM \
+            -configuration Release \
+            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath build/DerivedData \
+            CODE_SIGNING_ALLOWED=NO \
+            build
+
+      - name: Package IPA
+        run: |
+          mkdir -p build/Payload
+          APP=$(find build/DerivedData/Build/Products/Release-iphoneos \
+            -maxdepth 1 -name '*.app' -type d | head -n 1)
+
+          test -n "$APP"
+          cp -R "$APP" build/Payload/
+          cd build
+          zip -r Garak.ipa Payload
+
+      - name: Upload IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: Garak-IPA
+          path: build/Garak.ipa
